@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DEPT_HEAD
+}
+
+enum UserDepartmentType {
+  MAIN
+  SIDE
+}
+
+enum SlotRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id            String           @id @default(cuid())
+  name          String
+  email         String           @unique
+  password      String
+  role          Role             @default(DEPT_HEAD)
+  departments   UserDepartment[]
+  createdExams  Exam[]           @relation("ExamCreatedBy")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model Department {
+  id              String           @id @default(cuid())
+  name            String
+  color           String           @default("#3B82F6")
+  users           UserDepartment[]
+  courses         Course[]
+  exams           Exam[]
+  roomAssignments RoomAssignment[]
+  slotRequests    SlotRequest[]
+  instructors     Instructor[]     @relation("InstructorMainDept")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model UserDepartment {
+  id           String             @id @default(cuid())
+  userId       String
+  departmentId String
+  type         UserDepartmentType @default(MAIN)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+}
+
+model Room {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  assignments     RoomAssignment[]
+  slotRequests    SlotRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model RoomAssignment {
+  id           String     @id @default(cuid())
+  roomId       String
+  departmentId String
+  room         Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, departmentId])
+}
+
+model Instructor {
+  id         String     @id @default(cuid())
+  name       String
+  mainDeptId String
+  sideDeptIds String[]   @default([])
+  mainDept   Department @relation("InstructorMainDept", fields: [mainDeptId], references: [id])
+  courses    Course[]
+  exams      Exam[]     @relation("ExamInstructor")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Course {
+  id           String     @id @default(cuid())
+  code         String
+  name         String
+  section      Int        @default(1)
+  grade        Int        @default(1)
+  quota        Int        @default(30)
+  departmentId String
+  instructorId String
+  adminOnly    Boolean    @default(false)
+  department   Department @relation(fields: [departmentId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  exams        Exam[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model ScheduleDay {
+  id        String   @id @default(cuid())
+  date      String   // DD.MM.YYYY
+  sessions  String[] @default([]) // ["09:30", "11:00", ...]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date])
+}
+
+model Exam {
+  id            String     @id @default(cuid())
+  courseId      String
+  date          String     // DD.MM.YYYY
+  time          String     // HH:MM
+  roomIds       String[]   @default([])
+  supervisorIds String[]   @default([])
+  instructorId  String
+  departmentId  String
+  createdById   String
+  course        Course     @relation(fields: [courseId], references: [id])
+  instructor    Instructor @relation("ExamInstructor", fields: [instructorId], references: [id])
+  department    Department @relation(fields: [departmentId], references: [id])
+  createdBy     User       @relation("ExamCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model SlotRequest {
+  id               String            @id @default(cuid())
+  fromDepartmentId String
+  roomId           String
+  date             String            // DD.MM.YYYY
+  time             String            // HH:MM
+  status           SlotRequestStatus @default(PENDING)
+  fromDepartment   Department        @relation(fields: [fromDepartmentId], references: [id])
+  room             Room              @relation(fields: [roomId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
