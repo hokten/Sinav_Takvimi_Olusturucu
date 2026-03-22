@@ -148,6 +148,37 @@ describe('ScheduleService', () => {
       await expect(service.validateExam('e1', {}, user))
         .rejects.toThrow("Bu program için sınav yönetme yetkiniz yok.");
     });
+
+    it('bölüm başkanı paylaşımlı programa sınav ekleyemez', async () => {
+      mockPrisma.program.findUnique.mockResolvedValueOnce({ isSharedSource: true });
+      await expect(service.validateExam(null, { programId: 'shared-p' }, user))
+        .rejects.toThrow("Paylaşımlı (Genel) programa sınav ekleme yetkiniz yok.");
+    });
+
+    it('bölüm başkanı gözetmeni olan paylaşımlı sınavı düzenleyemez', async () => {
+      mockPrisma.exam.findUnique.mockResolvedValueOnce({ 
+        id: 'e1', isShared: true, programId: 'p1', supervisorIds: ['s1'], roomIds: ['r1'], createdBy: { role: 'ADMIN' } 
+      });
+      await expect(service.validateExam('e1', { supervisorIds: [] }, user))
+        .rejects.toThrow("Paylaşımlı sınavlar sadece gözetmen atanmamışsa ve sadece gözetmen eklemek için düzenlenebilir.");
+    });
+
+    it('bölüm başkanı paylaşımlı sınavın tarihini değiştiremez', async () => {
+      mockPrisma.exam.findUnique.mockResolvedValueOnce({ 
+        id: 'e1', isShared: true, programId: 'p1', supervisorIds: [], roomIds: ['r1'], createdBy: { role: 'ADMIN' } 
+      });
+      await expect(service.validateExam('e1', { date: '02.01.2024' }, user))
+        .rejects.toThrow("Paylaşımlı sınavlar sadece gözetmen atanmamışsa ve sadece gözetmen eklemek için düzenlenebilir.");
+    });
+
+    it('bölüm başkanı gözetmeni olmayan paylaşımlı sınava gözetmen atayabilir', async () => {
+      mockPrisma.exam.findUnique.mockResolvedValueOnce({ 
+        id: 'e1', isShared: true, programId: 'p1', supervisorIds: [], roomIds: ['r1'], createdBy: { role: 'ADMIN' } 
+      });
+      // Should not throw
+      await expect(service.validateExam('e1', { supervisorIds: ['s1'] }, user))
+        .resolves.not.toThrow();
+    });
   });
 
   describe('createExam', () => {
@@ -177,6 +208,12 @@ describe('ScheduleService', () => {
       const result = await service.deleteExam('e1', user);
       expect(result).toEqual({ success: true });
       expect(gateway.notifyScheduleUpdate).toHaveBeenCalled();
+    });
+
+    it('bölüm başkanı paylaşımlı sınavı silemez', async () => {
+      mockPrisma.exam.findUnique.mockResolvedValueOnce({ id: 'e1', isShared: true, createdBy: { role: 'ADMIN' } });
+      await expect(service.deleteExam('e1', user))
+        .rejects.toThrow("Paylaşımlı sınav silinemez.");
     });
   });
 });

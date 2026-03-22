@@ -38,7 +38,12 @@ let ScheduleController = class ScheduleController {
             }),
             this.prisma.scheduleDay.findMany({ orderBy: { date: 'asc' } }),
             this.prisma.exam.findMany({
-                where: isAdmin ? {} : { programId: { in: userProgramIds } },
+                where: isAdmin ? {} : {
+                    OR: [
+                        { programId: { in: userProgramIds } },
+                        { isShared: true }
+                    ]
+                },
                 include: {
                     course: { include: { instructor: true, program: true } },
                     instructor: true,
@@ -51,7 +56,12 @@ let ScheduleController = class ScheduleController {
             this.prisma.room.findMany({ orderBy: { name: 'asc' } }),
             this.prisma.instructor.findMany({ orderBy: { name: 'asc' } }),
             this.prisma.course.findMany({
-                where: isAdmin ? {} : { programId: { in: userProgramIds } },
+                where: isAdmin ? {} : {
+                    OR: [
+                        { programId: { in: userProgramIds } },
+                        { program: { isSharedSource: true } }
+                    ]
+                },
                 include: { instructor: true, program: true }
             }),
             this.prisma.roomAssignment.findMany()
@@ -59,7 +69,7 @@ let ScheduleController = class ScheduleController {
         return {
             programs,
             editableProgramIds: programs.map(p => p.id),
-            sharedSourceProgramIds: [],
+            sharedSourceProgramIds: (await this.prisma.program.findMany({ where: { isSharedSource: true }, select: { id: true } })).map(p => p.id),
             scheduleDays,
             exams,
             allExams: exams,

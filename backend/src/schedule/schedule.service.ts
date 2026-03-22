@@ -22,12 +22,34 @@ export class ScheduleService {
     const programId = body.programId || existing?.programId;
 
     if (user.role !== 'ADMIN') {
-      if (!programId || !user.programIds.includes(programId)) {
+      const targetProgramId = body.programId || existing?.programId;
+      const targetProgram = await this.prisma.program.findUnique({ where: { id: targetProgramId } });
+
+      // 1. Paylaşımlı programa sınav EKLEME engeli
+      if (!id && targetProgram?.isSharedSource) {
+        throw new ForbiddenException("Paylaşımlı (Genel) programa sınav ekleme yetkiniz yok.");
+      }
+
+      // 2. Yetki kontrolü (kendi programı mı?)
+      if (!targetProgramId || !user.programIds.includes(targetProgramId)) {
         throw new ForbiddenException("Bu program için sınav yönetme yetkiniz yok.");
       }
+
       if (existing) {
-        if (existing.isShared) throw new ForbiddenException("Paylaşımlı sınav düzenlenemez.");
-        if (existing.createdBy.role === 'ADMIN') throw new ForbiddenException("Admin sınavı düzenlenemez.");
+        if (existing.isShared) {
+          // 3. Paylaşımlı sınav GÜNCELLEME kısıtı
+          const isOnlyUpdatingSupervisors = Object.keys(body).every(key => 
+            ['supervisorIds', 'programId'].includes(key) // programId fits the update body usually
+          );
+          const hadNoSupervisors = existing.supervisorIds.length === 0;
+
+          if (!isOnlyUpdatingSupervisors || !hadNoSupervisors) {
+            throw new ForbiddenException("Paylaşımlı sınavlar sadece gözetmen atanmamışsa ve sadece gözetmen eklemek için düzenlenebilir.");
+          }
+        }
+        if (existing.createdBy.role === 'ADMIN' && !existing.isShared) {
+          throw new ForbiddenException("Admin tarafından oluşturulan özel sınavlar düzenlenemez.");
+        }
       }
     }
 

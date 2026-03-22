@@ -83,6 +83,8 @@ export function ExamTable({ program, editableProgramIds, scheduleDays, exams, ro
   }
 
   function getSupervisors(exam: Exam): string[] {
+    const ds = exam.deptSupervisors?.find((d) => d.programId === program.id);
+    if (ds && ds.supervisorIds.length > 0) return ds.supervisorIds;
     return exam.supervisorIds;
   }
 
@@ -255,9 +257,16 @@ export function ExamTable({ program, editableProgramIds, scheduleDays, exams, ro
                                   </button>
                                 </div>
                               );
-                            } else {
-                              // Bölüm başkanı: hiçbir işlem yapamaz (Yüksekokul sınavları tam yetkili yöneticidedir)
-                              actionCell = null;
+                            } else if (getSupervisors(exam).length === 0) {
+                              // Bölüm başkanı: paylaşımlı sınavda gözetmen yoksa atayabilir
+                              actionCell = (
+                                <button
+                                  onClick={() => onEditSupervisors(exam)}
+                                  className="text-xs text-amber-500 font-medium hover:underline"
+                                >
+                                  Gözetmen Ata ⚠
+                                </button>
+                              );
                             }
                           } else if (isAdminManaged) {
                             if (isAdmin) {
@@ -278,7 +287,7 @@ export function ExamTable({ program, editableProgramIds, scheduleDays, exams, ro
                                   </button>
                                 </div>
                               );
-                            } else if (exam.supervisorIds.length === 0) {
+                            } else if (getSupervisors(exam).length === 0) {
                               // Bölüm başkanı: admin gözetmen bırakmamışsa sadece gözetmen atayabilir
                               actionCell = (
                                 <button
@@ -358,7 +367,7 @@ export function ExamTable({ program, editableProgramIds, scheduleDays, exams, ro
                               {supervisors.map((sid, idx) => (
                                 <div key={idx}>{sid}</div>
                               ))}
-                              {(exam.isShared || (!exam.isShared && exam.createdBy.role === "ADMIN")) && supervisors.length === 0 && (
+                              {(exam.isShared || (!exam.isShared && exam.createdBy.role === "ADMIN")) && getSupervisors(exam).length === 0 && (
                                 <span className="no-print text-amber-500 text-xs italic">Gözetmen atanmamış</span>
                               )}
                             </td>

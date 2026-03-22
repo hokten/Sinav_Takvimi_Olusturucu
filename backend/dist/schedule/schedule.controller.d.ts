@@ -10,14 +10,14 @@ export declare class ScheduleController {
         programs: {
             id: string;
             name: string;
-            createdAt: Date;
-            updatedAt: Date;
-            departmentId: string;
             color: string;
             isSharedSource: boolean;
+            departmentId: string;
+            createdAt: Date;
+            updatedAt: Date;
         }[];
         editableProgramIds: string[];
-        sharedSourceProgramIds: never[];
+        sharedSourceProgramIds: string[];
         scheduleDays: {
             id: string;
             createdAt: Date;
@@ -29,29 +29,21 @@ export declare class ScheduleController {
             program: {
                 id: string;
                 name: string;
-                createdAt: Date;
-                updatedAt: Date;
-                departmentId: string;
                 color: string;
                 isSharedSource: boolean;
-            };
-            instructor: {
-                id: string;
-                name: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                mainProgramId: string;
-                sideProgramIds: string[];
             };
             course: {
                 program: {
                     id: string;
                     name: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    departmentId: string;
                     color: string;
                     isSharedSource: boolean;
+                    departmentId: string;
+                    createdAt: Date;
+                    updatedAt: Date;
                 };
                 instructor: {
                     id: string;
@@ -66,21 +58,29 @@ export declare class ScheduleController {
                 name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                instructorId: string;
+                programId: string;
                 code: string;
                 section: number;
                 grade: number;
                 quota: number;
-                programId: string;
-                instructorId: string;
                 adminOnly: boolean;
+            };
+            instructor: {
+                id: string;
+                name: string;
+                createdAt: Date;
+                updatedAt: Date;
+                mainProgramId: string;
+                sideProgramIds: string[];
             };
             createdBy: {
                 role: import(".prisma/client").$Enums.Role;
             };
             deptSupervisors: {
                 id: string;
-                programId: string;
                 supervisorIds: string[];
+                programId: string;
                 examId: string;
             }[];
         } & {
@@ -88,12 +88,12 @@ export declare class ScheduleController {
             createdAt: Date;
             updatedAt: Date;
             date: string;
-            time: string;
-            programId: string;
-            instructorId: string;
             courseId: string;
+            time: string;
             roomIds: string[];
             supervisorIds: string[];
+            instructorId: string;
+            programId: string;
             isShared: boolean;
             createdById: string;
         })[];
@@ -101,29 +101,21 @@ export declare class ScheduleController {
             program: {
                 id: string;
                 name: string;
-                createdAt: Date;
-                updatedAt: Date;
-                departmentId: string;
                 color: string;
                 isSharedSource: boolean;
-            };
-            instructor: {
-                id: string;
-                name: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                mainProgramId: string;
-                sideProgramIds: string[];
             };
             course: {
                 program: {
                     id: string;
                     name: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    departmentId: string;
                     color: string;
                     isSharedSource: boolean;
+                    departmentId: string;
+                    createdAt: Date;
+                    updatedAt: Date;
                 };
                 instructor: {
                     id: string;
@@ -138,21 +130,29 @@ export declare class ScheduleController {
                 name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                instructorId: string;
+                programId: string;
                 code: string;
                 section: number;
                 grade: number;
                 quota: number;
-                programId: string;
-                instructorId: string;
                 adminOnly: boolean;
+            };
+            instructor: {
+                id: string;
+                name: string;
+                createdAt: Date;
+                updatedAt: Date;
+                mainProgramId: string;
+                sideProgramIds: string[];
             };
             createdBy: {
                 role: import(".prisma/client").$Enums.Role;
             };
             deptSupervisors: {
                 id: string;
-                programId: string;
                 supervisorIds: string[];
+                programId: string;
                 examId: string;
             }[];
         } & {
@@ -160,12 +160,12 @@ export declare class ScheduleController {
             createdAt: Date;
             updatedAt: Date;
             date: string;
-            time: string;
-            programId: string;
-            instructorId: string;
             courseId: string;
+            time: string;
             roomIds: string[];
             supervisorIds: string[];
+            instructorId: string;
+            programId: string;
             isShared: boolean;
             createdById: string;
         })[];
@@ -188,11 +188,11 @@ export declare class ScheduleController {
             program: {
                 id: string;
                 name: string;
-                createdAt: Date;
-                updatedAt: Date;
-                departmentId: string;
                 color: string;
                 isSharedSource: boolean;
+                departmentId: string;
+                createdAt: Date;
+                updatedAt: Date;
             };
             instructor: {
                 id: string;
@@ -207,12 +207,12 @@ export declare class ScheduleController {
             name: string;
             createdAt: Date;
             updatedAt: Date;
+            instructorId: string;
+            programId: string;
             code: string;
             section: number;
             grade: number;
             quota: number;
-            programId: string;
-            instructorId: string;
             adminOnly: boolean;
         })[];
         roomAssignments: {
@@ -237,12 +237,12 @@ export declare class ScheduleController {
         createdAt: Date;
         updatedAt: Date;
         date: string;
-        time: string;
-        programId: string;
-        instructorId: string;
         courseId: string;
+        time: string;
         roomIds: string[];
         supervisorIds: string[];
+        instructorId: string;
+        programId: string;
         isShared: boolean;
         createdById: string;
     }>;
@@ -251,12 +251,12 @@ export declare class ScheduleController {
         createdAt: Date;
         updatedAt: Date;
         date: string;
-        time: string;
-        programId: string;
-        instructorId: string;
         courseId: string;
+        time: string;
         roomIds: string[];
         supervisorIds: string[];
+        instructorId: string;
+        programId: string;
         isShared: boolean;
         createdById: string;
     }>;
