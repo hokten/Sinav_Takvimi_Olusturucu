@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  DEPT_HEAD
+}
+
+enum UserProgramType {
+  MAIN
+  SIDE
+}
+
+enum SlotRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  password     String
+  role         Role          @default(DEPT_HEAD)
+  programs     UserProgram[]
+  createdExams Exam[]        @relation("ExamCreatedBy")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String
+  programs  Program[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Program {
+  id              String                  @id @default(cuid())
+  name            String
+  color           String                  @default("#3B82F6")
+  isSharedSource  Boolean                 @default(false)
+  departmentId    String
+  department      Department              @relation(fields: [departmentId], references: [id])
+  users           UserProgram[]
+  courses         Course[]
+  exams           Exam[]
+  roomAssignments RoomAssignment[]
+  slotRequests         SlotRequest[]
+  slotRequestApprovals SlotRequestApproval[]
+  instructors          Instructor[]            @relation("InstructorMainProgram")
+  sharedExamSups  SharedExamSupervisors[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+}
+
+model UserProgram {
+  id        String          @id @default(cuid())
+  userId    String
+  programId String
+  type      UserProgramType @default(MAIN)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program   Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId])
+}
+
+model Room {
+  id           String           @id @default(cuid())
+  name         String           @unique
+  capacity     Int              @default(0)
+  assignments  RoomAssignment[]
+  slotRequests SlotRequest[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model RoomAssignment {
+  id        String  @id @default(cuid())
+  roomId    String
+  programId String
+  room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, programId])
+}
+
+model Instructor {
+  id             String   @id @default(cuid())
+  name           String
+  mainProgramId  String
+  sideProgramIds String[] @default([])
+  mainProgram    Program  @relation("InstructorMainProgram", fields: [mainProgramId], references: [id])
+  courses        Course[]
+  exams          Exam[]   @relation("ExamInstructor")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Course {
+  id           String     @id @default(cuid())
+  code         String
+  name         String
+  section      Int        @default(1)
+  grade        Int        @default(1)
+  quota        Int        @default(30)
+  programId    String
+  instructorId String
+  adminOnly    Boolean    @default(false)
+  program      Program    @relation(fields: [programId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  exams        Exam[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model ScheduleDay {
+  id        String   @id @default(cuid())
+  date      String   // DD.MM.YYYY
+  sessions  String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date])
+}
+
+model Exam {
+  id              String                  @id @default(cuid())
+  courseId        String
+  date            String                  // DD.MM.YYYY
+  time            String                  // HH:MM
+  roomIds         String[]                @default([])
+  supervisorIds   String[]                @default([])
+  instructorId    String
+  programId       String
+  isShared        Boolean                 @default(false)
+  createdById     String
+  course          Course                  @relation(fields: [courseId], references: [id])
+  instructor      Instructor              @relation("ExamInstructor", fields: [instructorId], references: [id])
+  program         Program                 @relation(fields: [programId], references: [id])
+  createdBy       User                    @relation("ExamCreatedBy", fields: [createdById], references: [id])
+  deptSupervisors SharedExamSupervisors[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+}
+
+model SharedExamSupervisors {
+  id            String   @id @default(cuid())
+  examId        String
+  programId     String
+  supervisorIds String[] @default([])
+  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  program       Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, programId])
+}
+
+model SlotRequest {
+  id            String                @id @default(cuid())
+  fromProgramId String
+  roomId        String
+  date          String                // DD.MM.YYYY
+  time          String                // HH:MM
+  status        SlotRequestStatus     @default(PENDING)
+  approvals     SlotRequestApproval[]
+  fromProgram   Program               @relation(fields: [fromProgramId], references: [id])
+  room          Room                  @relation(fields: [roomId], references: [id])
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model SlotRequestApproval {
+  id            String      @id @default(cuid())
+  slotRequestId String
+  programId     String
+  approved      Boolean
+  slotRequest   SlotRequest @relation(fields: [slotRequestId], references: [id], onDelete: Cascade)
+  program       Program     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([slotRequestId, programId])
+}
