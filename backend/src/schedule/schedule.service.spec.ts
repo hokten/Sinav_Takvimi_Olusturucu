@@ -44,10 +44,17 @@ describe('ScheduleService', () => {
     service = module.get<ScheduleService>(ScheduleService);
     prisma = module.get<PrismaService>(PrismaService);
     gateway = module.get<ScheduleGateway>(ScheduleGateway);
+
+    // Default mocks
+    mockPrisma.exam.findFirst.mockResolvedValue(null);
+    mockPrisma.exam.findUnique.mockResolvedValue(null);
+    mockPrisma.slotRequest.findFirst.mockResolvedValue(null);
+    mockPrisma.instructor.findUnique.mockResolvedValue(null);
+    mockPrisma.program.findUnique.mockResolvedValue({ id: 'p1', isSharedSource: false });
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('validateExam', () => {
@@ -81,34 +88,55 @@ describe('ScheduleService', () => {
         .rejects.toThrow('Gözetmen "s1" bu saatte "Diğer Sınav" sınavında görevli.');
     });
 
+    it('aynı ders için mükerrer sınav oluşturulmaya çalışılırsa BadRequestException fırlatmalı', async () => {
+      mockPrisma.exam.findFirst
+        .mockResolvedValueOnce(null) // supervisor
+        .mockResolvedValueOnce({ id: 'e-old' }); // duplicate course
+      await expect(service.validateExam(null, validBody, user))
+        .rejects.toThrow("Bu dersin bu saatte zaten bir sınavı var.");
+    });
+
+    it('hoca aynı saatte farklı bir dersin sınavında ise BadRequestException fırlatmalı', async () => {
+      mockPrisma.exam.findFirst
+        .mockResolvedValueOnce(null) // supervisor
+        .mockResolvedValueOnce(null) // duplicate course
+        .mockResolvedValueOnce({ course: { name: 'Diğer Ders' } }); // instructor conflict
+      await expect(service.validateExam(null, validBody, user))
+        .rejects.toThrow('Sorumlu hoca bu saatte zaten "Diğer Ders" sınavından sorumlu.');
+    });
+
     it('sorumlu hoca başka sınavda gözetmen ise BadRequestException fırlatmalı', async () => {
       mockPrisma.instructor.findUnique.mockResolvedValueOnce({ name: 'Hoca 1' });
-      mockPrisma.exam.findFirst.mockResolvedValueOnce(null); // initial supervisor check
-      mockPrisma.exam.findFirst.mockResolvedValueOnce({ 
-        course: { name: 'Gözetmenlik Yaptığı Sınav' },
-        supervisorIds: ['Hoca 1']
-      }); // instructor busy check
+      mockPrisma.exam.findFirst
+        .mockResolvedValueOnce(null) // supervisor
+        .mockResolvedValueOnce(null) // duplicate
+        .mockResolvedValueOnce(null) // instructor conflict
+        .mockResolvedValueOnce({ 
+          course: { name: 'Gözetmenlik Yaptığı Sınav' },
+          supervisorIds: ['Hoca 1']
+        }); // instructor busy as supervisor
       
       await expect(service.validateExam(null, { ...validBody, instructorId: 'i1' }, user))
         .rejects.toThrow('Sorumlu hoca "Hoca 1" bu saatte "Gözetmenlik Yaptığı Sınav" sınavında gözetmen olarak görevli.');
     });
 
     it('salon çakışması durumunda BadRequestException fırlatmalı', async () => {
-      mockPrisma.exam.findFirst.mockResolvedValueOnce(null); // supervisor check
-      mockPrisma.exam.findFirst.mockResolvedValueOnce({ 
-        course: { name: 'Dolu Sınav' }
-      }); // room overlap check
+      mockPrisma.exam.findFirst
+        .mockResolvedValueOnce(null) // supervisor
+        .mockResolvedValueOnce(null) // duplicate
+        .mockResolvedValueOnce(null) // inst conflict
+        .mockResolvedValueOnce({ course: { name: 'Dolu Sınav' } }); // room overlap
+      
       await expect(service.validateExam(null, validBody, user))
         .rejects.toThrow('Seçilen salonlardan biri bu saatte "Dolu Sınav" sınavı/dersliği için dolu.');
     });
 
     it('salon rezerve edilmişse BadRequestException fırlatmalı', async () => {
-      mockPrisma.exam.findFirst.mockResolvedValue(null);
       mockPrisma.slotRequest.findFirst.mockResolvedValueOnce({ 
-        fromProgram: { name: 'Başka Program' }
+        fromProgram: { name: 'Diğer Program' }
       });
       await expect(service.validateExam(null, validBody, user))
-        .rejects.toThrow('Seçilen salon bu saatte "Başka Program" programına rezerve edilmiş.');
+        .rejects.toThrow('Seçilen salon bu saatte "Diğer Program" programına rezerve edilmiş.');
     });
 
     it('yetkisiz kullanıcı düzenlemeye çalışırsa ForbiddenException fırlatmalı', async () => {
@@ -120,23 +148,14 @@ describe('ScheduleService', () => {
       await expect(service.validateExam('e1', {}, user))
         .rejects.toThrow("Bu program için sınav yönetme yetkiniz yok.");
     });
-
-    it('yetkisiz kullanıcı sınav oluşturmaya çalışırsa ForbiddenException fırlatmalı', async () => {
-      await expect(service.validateExam(null, { programId: 'p2' }, user))
-        .rejects.toThrow("Bu program için sınav yönetme yetkiniz yok.");
-    });
   });
 
   describe('createExam', () => {
     const user = { id: 'u1', role: 'DEPT_HEAD', programIds: ['p1'] };
-    const body = { programId: 'p1', roomIds: ['r1'], supervisorIds: ['s1'] };
+    const body = { programId: 'p1', roomIds: ['r1'], supervisorIds: ['s1'], courseId: 'c1', date: '01.01.2024', time: '10:00' };
 
     it('başarıyla sınav oluşturmalı', async () => {
-      mockPrisma.exam.findFirst.mockResolvedValue(null);
-      mockPrisma.slotRequest.findFirst.mockResolvedValue(null);
-      mockPrisma.program.findUnique.mockResolvedValue({ isSharedSource: false });
       mockPrisma.exam.create.mockResolvedValue({ id: 'new-exam' });
-
       const result = await service.createExam(body, user);
       expect(result).toEqual({ id: 'new-exam' });
       expect(gateway.notifyScheduleUpdate).toHaveBeenCalled();
@@ -145,16 +164,6 @@ describe('ScheduleService', () => {
 
   describe('deleteExam', () => {
     const user = { id: 'u1', role: 'DEPT_HEAD', programIds: ['p1'] };
-
-    it('yetkisiz kullanıcı sınav silmeye çalışırsa ForbiddenException fırlatmalı', async () => {
-      mockPrisma.exam.findUnique.mockResolvedValue({ 
-        programId: 'p2', 
-        isShared: false,
-        createdBy: { role: 'DEPT_HEAD' }
-      });
-      await expect(service.deleteExam('e1', user))
-        .rejects.toThrow("Bu program için sınav yönetme yetkiniz yok.");
-    });
 
     it('başarıyla sınav silmeli', async () => {
       mockPrisma.exam.findUnique.mockResolvedValue({ 

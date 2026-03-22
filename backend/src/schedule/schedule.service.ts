@@ -59,24 +59,56 @@ export class ScheduleService {
         const overlappingName = supervisorIds.find((s: string) => busySupervisor.supervisorIds.includes(s));
         throw new BadRequestException(`Gözetmen "${overlappingName}" bu saatte "${busySupervisor.course.name}" sınavında görevli.`);
       }
+    }
 
-      // NEW RULE: If instructor is busy supervising elsewhere
-      const instructorId = body.instructorId || existing?.instructorId;
-      if (instructorId) {
-        const instructor = await this.prisma.instructor.findUnique({ where: { id: instructorId } });
-        if (instructor) {
-          const instructorBusyElsewhere = await this.prisma.exam.findFirst({
-            where: {
-              id: id ? { not: id } : undefined,
-              date,
-              time,
-              supervisorIds: { has: instructor.name }
-            },
-            include: { course: true }
-          });
-          if (instructorBusyElsewhere) {
-            throw new BadRequestException(`Sorumlu hoca "${instructor.name}" bu saatte "${instructorBusyElsewhere.course.name}" sınavında gözetmen olarak görevli.`);
-          }
+    const courseId = body.courseId || existing?.courseId;
+    const instructorId = body.instructorId || existing?.instructorId;
+
+    // 1. Prevent multiple Exam records for the SAME course at the same time
+    if (courseId) {
+      const duplicateCourseExam = await this.prisma.exam.findFirst({
+        where: {
+          id: id ? { not: id } : undefined,
+          courseId,
+          date,
+          time
+        }
+      });
+      if (duplicateCourseExam) {
+        throw new BadRequestException("Bu dersin bu saatte zaten bir sınavı var. Mevcut sınavı düzenleyerek yeni derslikler ekleyebilirsiniz.");
+      }
+    }
+
+    // 2. Prevent Instructor from having exams for DIFFERENT courses at the same time
+    if (instructorId) {
+      const instructorConflict = await this.prisma.exam.findFirst({
+        where: {
+          id: id ? { not: id } : undefined,
+          instructorId,
+          date,
+          time,
+          courseId: { not: courseId }
+        },
+        include: { course: true }
+      });
+      if (instructorConflict) {
+        throw new BadRequestException(`Sorumlu hoca bu saatte zaten "${instructorConflict.course.name}" sınavından sorumlu.`);
+      }
+
+      // Check if instructor is busy supervising elsewhere
+      const instructor = await this.prisma.instructor.findUnique({ where: { id: instructorId } });
+      if (instructor) {
+        const instructorBusyElsewhere = await this.prisma.exam.findFirst({
+          where: {
+            id: id ? { not: id } : undefined,
+            date,
+            time,
+            supervisorIds: { has: instructor.name }
+          },
+          include: { course: true }
+        });
+        if (instructorBusyElsewhere) {
+          throw new BadRequestException(`Sorumlu hoca "${instructor.name}" bu saatte "${instructorBusyElsewhere.course.name}" sınavında gözetmen olarak görevli.`);
         }
       }
     }
