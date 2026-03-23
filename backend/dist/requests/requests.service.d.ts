@@ -83,9 +83,9 @@ export declare class RequestsService {
         updatedAt: Date;
         date: string;
         time: string;
-        fromProgramId: string;
         roomId: string;
         status: import(".prisma/client").$Enums.SlotRequestStatus;
+        fromProgramId: string;
     }>;
     approve(id: string, userProgramIds: string[], userRole: string): Promise<{
         success: boolean;

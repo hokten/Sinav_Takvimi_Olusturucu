@@ -3,15 +3,6 @@ export declare class CoursesController {
     private readonly coursesService;
     constructor(coursesService: CoursesService);
     findAll(): Promise<({
-        program: {
-            id: string;
-            name: string;
-            createdAt: Date;
-            updatedAt: Date;
-            departmentId: string;
-            color: string;
-            isSharedSource: boolean;
-        };
         instructor: {
             id: string;
             name: string;
@@ -20,31 +11,40 @@ export declare class CoursesController {
             mainProgramId: string;
             sideProgramIds: string[];
         };
+        program: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            color: string;
+            isSharedSource: boolean;
+            departmentId: string;
+        };
     } & {
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     })[]>;
     create(body: any): Promise<{
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     }>;
     importCourses(body: {
         rows: any[];
@@ -55,28 +55,28 @@ export declare class CoursesController {
     }>;
     update(id: string, body: any): Promise<{
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     }>;
     remove(id: string): Promise<{
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     }>;
 }

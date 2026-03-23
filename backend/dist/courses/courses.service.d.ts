@@ -3,15 +3,6 @@ export declare class CoursesService {
     private prisma;
     constructor(prisma: PrismaService);
     findAll(): Promise<({
-        program: {
-            id: string;
-            name: string;
-            createdAt: Date;
-            updatedAt: Date;
-            departmentId: string;
-            color: string;
-            isSharedSource: boolean;
-        };
         instructor: {
             id: string;
             name: string;
@@ -20,57 +11,66 @@ export declare class CoursesService {
             mainProgramId: string;
             sideProgramIds: string[];
         };
+        program: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            color: string;
+            isSharedSource: boolean;
+            departmentId: string;
+        };
     } & {
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     })[]>;
     create(data: any): Promise<{
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     }>;
     update(id: string, data: any): Promise<{
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     }>;
     remove(id: string): Promise<{
         id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
         code: string;
+        name: string;
         section: number;
         grade: number;
         quota: number;
-        programId: string;
         instructorId: string;
         adminOnly: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        programId: string;
     }>;
     importCourses(rows: any[]): Promise<{
         created: number;

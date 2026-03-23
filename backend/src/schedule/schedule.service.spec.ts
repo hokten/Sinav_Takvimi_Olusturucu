@@ -23,6 +23,10 @@ describe('ScheduleService', () => {
     instructor: {
       findUnique: jest.fn(),
     },
+    course: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
     slotRequest: {
       findFirst: jest.fn(),
     },
@@ -50,6 +54,7 @@ describe('ScheduleService', () => {
     mockPrisma.exam.findUnique.mockResolvedValue(null);
     mockPrisma.slotRequest.findFirst.mockResolvedValue(null);
     mockPrisma.instructor.findUnique.mockResolvedValue(null);
+    mockPrisma.course.findUnique.mockResolvedValue({ id: 'c1', isSectioned: false, programId: 'p1' });
     mockPrisma.program.findUnique.mockResolvedValue({ id: 'p1', isSharedSource: false });
   });
 
@@ -90,17 +95,17 @@ describe('ScheduleService', () => {
 
     it('aynı ders için mükerrer sınav oluşturulmaya çalışılırsa BadRequestException fırlatmalı', async () => {
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // supervisor
-        .mockResolvedValueOnce({ id: 'e-old' }); // duplicate course
+        .mockResolvedValueOnce(null) // 1. supervisor
+        .mockResolvedValueOnce({ id: 'e-old' }); // 2. duplicate courseId
       await expect(service.validateExam(null, validBody, user))
         .rejects.toThrow("Bu dersin bu saatte zaten bir sınavı var.");
     });
 
     it('hoca aynı saatte farklı bir dersin sınavında ise BadRequestException fırlatmalı', async () => {
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // supervisor
-        .mockResolvedValueOnce(null) // duplicate course
-        .mockResolvedValueOnce({ course: { name: 'Diğer Ders' } }); // instructor conflict
+        .mockResolvedValueOnce(null) // 1. supervisor
+        .mockResolvedValueOnce(null) // 2. duplicate courseId
+        .mockResolvedValueOnce({ course: { name: 'Diğer Ders' } }); // 3. instructor conflict
       await expect(service.validateExam(null, validBody, user))
         .rejects.toThrow('Sorumlu hoca bu saatte zaten "Diğer Ders" sınavından sorumlu.');
     });
@@ -121,11 +126,13 @@ describe('ScheduleService', () => {
     });
 
     it('salon çakışması durumunda BadRequestException fırlatmalı', async () => {
+      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c1', code: 'C1' });
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // supervisor
-        .mockResolvedValueOnce(null) // duplicate
-        .mockResolvedValueOnce(null) // inst conflict
-        .mockResolvedValueOnce({ course: { name: 'Dolu Sınav' } }); // room overlap
+        .mockResolvedValueOnce(null) // 1. supervisor
+        .mockResolvedValueOnce(null) // 2. duplicate ID
+        .mockResolvedValueOnce(null) // 3. inst conflict
+        .mockResolvedValueOnce(null) // 4. same program exclusivity
+        .mockResolvedValueOnce({ course: { name: 'Dolu Sınav' } }); // 5. room overlap
       
       await expect(service.validateExam(null, validBody, user))
         .rejects.toThrow('Seçilen salonlardan biri bu saatte "Dolu Sınav" sınavı/dersliği için dolu.');
@@ -172,12 +179,34 @@ describe('ScheduleService', () => {
     });
 
     it('bölüm başkanı gözetmeni olmayan paylaşımlı sınava gözetmen atayabilir', async () => {
+      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c1', isSectioned: true });
       mockPrisma.exam.findUnique.mockResolvedValueOnce({ 
         id: 'e1', isShared: true, programId: 'p1', supervisorIds: [], roomIds: ['r1'], createdBy: { role: 'ADMIN' } 
       });
       // Should not throw
       await expect(service.validateExam('e1', { supervisorIds: ['s1'] }, user))
         .resolves.not.toThrow();
+    });
+
+    it('şubeli derste farklı şubelerin aynı anda sınavına izin vermeli', async () => {
+      mockPrisma.course.findUnique.mockResolvedValue({ id: 'c-sec-2', code: 'BIL-101' });
+      mockPrisma.exam.findFirst.mockResolvedValue(null);
+      
+      // Should not throw even if another section of BIL-101 exists in session
+      await expect(service.validateExam(null, { ...validBody, courseId: 'c-sec-2' }, user))
+        .resolves.not.toThrow();
+    });
+
+    it('aynı programda farklı derslerin aynı anda sınavı engellenmeli', async () => {
+      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c-1', code: 'BIL-101' });
+      mockPrisma.exam.findFirst
+        .mockResolvedValueOnce(null) // 1. supervisor
+        .mockResolvedValueOnce(null) // 2. duplicate ID
+        .mockResolvedValueOnce(null) // 3. inst conflict
+        .mockResolvedValueOnce({ course: { name: 'Diğer Ders', code: 'MAT-101' } }); // 4. same program exclusivity
+      
+      await expect(service.validateExam(null, { ...validBody, courseId: 'c-1' }, user))
+        .rejects.toThrow('Aynı programda farklı derslerin ("Diğer Ders") sınavı aynı oturumda olamaz.');
     });
   });
 

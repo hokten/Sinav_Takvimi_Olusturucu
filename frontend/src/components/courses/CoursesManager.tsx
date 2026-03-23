@@ -77,6 +77,26 @@ export function CoursesManager({ courses, programs, instructors, onRefresh }: Pr
     setShowForm(true);
   }
 
+  function openAddSection(course: Course) {
+    // Find the highest section for this course code
+    const related = courses.filter(c => c.code === course.code);
+    const maxSection = Math.max(...related.map(c => c.section), 0);
+    
+    setEditId(null);
+    setForm({
+      code: course.code,
+      name: course.name,
+      section: maxSection + 1,
+      grade: course.grade,
+      quota: course.quota,
+      programId: course.programId,
+      instructorId: course.instructorId,
+      adminOnly: course.adminOnly,
+    });
+    setError("");
+    setShowForm(true);
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -194,6 +214,14 @@ export function CoursesManager({ courses, programs, instructors, onRefresh }: Pr
               </div>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => openAddSection(course)}
+                className="text-gray-400 hover:text-green-600 transition-colors flex items-center gap-1 text-[10px] uppercase font-bold"
+                title="Şube Ekle"
+              >
+                <Plus size={14} />
+                Şube
+              </button>
               <button
                 onClick={() => openEdit(course)}
                 className="text-gray-400 hover:text-blue-600 transition-colors"

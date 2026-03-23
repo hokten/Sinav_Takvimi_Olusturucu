@@ -11,13 +11,13 @@ export declare class ScheduleService {
         time: string;
         roomIds: string[];
         supervisorIds: string[];
-        isShared: boolean;
         createdAt: Date;
         updatedAt: Date;
+        isShared: boolean;
         courseId: string;
         instructorId: string;
-        programId: string;
         createdById: string;
+        programId: string;
     }>;
     updateExam(id: string, body: any, user: any): Promise<{
         id: string;
@@ -25,13 +25,13 @@ export declare class ScheduleService {
         time: string;
         roomIds: string[];
         supervisorIds: string[];
-        isShared: boolean;
         createdAt: Date;
         updatedAt: Date;
+        isShared: boolean;
         courseId: string;
         instructorId: string;
-        programId: string;
         createdById: string;
+        programId: string;
     }>;
     deleteExam(id: string, user: any): Promise<{
         success: boolean;

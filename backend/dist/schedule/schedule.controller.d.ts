@@ -9,73 +9,73 @@ export declare class ScheduleController {
     getScheduleData(req: any): Promise<{
         programs: {
             id: string;
+            createdAt: Date;
+            updatedAt: Date;
             name: string;
             color: string;
             isSharedSource: boolean;
             departmentId: string;
-            createdAt: Date;
-            updatedAt: Date;
         }[];
         editableProgramIds: string[];
         sharedSourceProgramIds: string[];
         scheduleDays: {
             id: string;
+            date: string;
             createdAt: Date;
             updatedAt: Date;
-            date: string;
             sessions: string[];
         }[];
         exams: ({
-            program: {
-                id: string;
-                name: string;
-                color: string;
-                isSharedSource: boolean;
-                departmentId: string;
-                createdAt: Date;
-                updatedAt: Date;
-            };
             course: {
+                instructor: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    name: string;
+                    mainProgramId: string;
+                    sideProgramIds: string[];
+                };
                 program: {
                     id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
                     name: string;
                     color: string;
                     isSharedSource: boolean;
                     departmentId: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                };
-                instructor: {
-                    id: string;
-                    name: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    mainProgramId: string;
-                    sideProgramIds: string[];
                 };
             } & {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
                 instructorId: string;
                 programId: string;
+                name: string;
                 code: string;
                 section: number;
                 grade: number;
                 quota: number;
                 adminOnly: boolean;
             };
+            createdBy: {
+                role: import(".prisma/client").$Enums.Role;
+            };
             instructor: {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                name: string;
                 mainProgramId: string;
                 sideProgramIds: string[];
             };
-            createdBy: {
-                role: import(".prisma/client").$Enums.Role;
+            program: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                color: string;
+                isSharedSource: boolean;
+                departmentId: string;
             };
             deptSupervisors: {
                 id: string;
@@ -85,69 +85,69 @@ export declare class ScheduleController {
             }[];
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             date: string;
-            courseId: string;
             time: string;
             roomIds: string[];
             supervisorIds: string[];
-            instructorId: string;
-            programId: string;
+            createdAt: Date;
+            updatedAt: Date;
             isShared: boolean;
+            courseId: string;
+            instructorId: string;
             createdById: string;
+            programId: string;
         })[];
         allExams: ({
-            program: {
-                id: string;
-                name: string;
-                color: string;
-                isSharedSource: boolean;
-                departmentId: string;
-                createdAt: Date;
-                updatedAt: Date;
-            };
             course: {
+                instructor: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    name: string;
+                    mainProgramId: string;
+                    sideProgramIds: string[];
+                };
                 program: {
                     id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
                     name: string;
                     color: string;
                     isSharedSource: boolean;
                     departmentId: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                };
-                instructor: {
-                    id: string;
-                    name: string;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    mainProgramId: string;
-                    sideProgramIds: string[];
                 };
             } & {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
                 instructorId: string;
                 programId: string;
+                name: string;
                 code: string;
                 section: number;
                 grade: number;
                 quota: number;
                 adminOnly: boolean;
             };
+            createdBy: {
+                role: import(".prisma/client").$Enums.Role;
+            };
             instructor: {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                name: string;
                 mainProgramId: string;
                 sideProgramIds: string[];
             };
-            createdBy: {
-                role: import(".prisma/client").$Enums.Role;
+            program: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                color: string;
+                isSharedSource: boolean;
+                departmentId: string;
             };
             deptSupervisors: {
                 id: string;
@@ -157,58 +157,58 @@ export declare class ScheduleController {
             }[];
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             date: string;
-            courseId: string;
             time: string;
             roomIds: string[];
             supervisorIds: string[];
-            instructorId: string;
-            programId: string;
+            createdAt: Date;
+            updatedAt: Date;
             isShared: boolean;
+            courseId: string;
+            instructorId: string;
             createdById: string;
+            programId: string;
         })[];
         rooms: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             capacity: number;
         }[];
         instructors: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             mainProgramId: string;
             sideProgramIds: string[];
         }[];
         courses: ({
+            instructor: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                mainProgramId: string;
+                sideProgramIds: string[];
+            };
             program: {
                 id: string;
+                createdAt: Date;
+                updatedAt: Date;
                 name: string;
                 color: string;
                 isSharedSource: boolean;
                 departmentId: string;
-                createdAt: Date;
-                updatedAt: Date;
-            };
-            instructor: {
-                id: string;
-                name: string;
-                createdAt: Date;
-                updatedAt: Date;
-                mainProgramId: string;
-                sideProgramIds: string[];
             };
         } & {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
             instructorId: string;
             programId: string;
+            name: string;
             code: string;
             section: number;
             grade: number;
@@ -234,31 +234,31 @@ export declare class ScheduleController {
     }>;
     createExam(body: any, req: any): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         date: string;
-        courseId: string;
         time: string;
         roomIds: string[];
         supervisorIds: string[];
-        instructorId: string;
-        programId: string;
+        createdAt: Date;
+        updatedAt: Date;
         isShared: boolean;
+        courseId: string;
+        instructorId: string;
         createdById: string;
+        programId: string;
     }>;
     updateExam(id: string, body: any, req: any): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         date: string;
-        courseId: string;
         time: string;
         roomIds: string[];
         supervisorIds: string[];
-        instructorId: string;
-        programId: string;
+        createdAt: Date;
+        updatedAt: Date;
         isShared: boolean;
+        courseId: string;
+        instructorId: string;
         createdById: string;
+        programId: string;
     }>;
     deleteExam(id: string, req: any): Promise<{
         success: boolean;

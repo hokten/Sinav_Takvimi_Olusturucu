@@ -123,6 +123,27 @@ let ScheduleService = class ScheduleService {
                 }
             }
         }
+        const targetCourse = await this.prisma.course.findUnique({
+            where: { id: courseId },
+            include: { program: true }
+        });
+        if (!targetCourse)
+            throw new common_1.BadRequestException("Ders bulunamadı.");
+        const otherCourseInProgram = await this.prisma.exam.findFirst({
+            where: {
+                id: id ? { not: id } : undefined,
+                programId: programId,
+                date,
+                time,
+                course: {
+                    code: { not: targetCourse.code }
+                }
+            },
+            include: { course: true }
+        });
+        if (otherCourseInProgram) {
+            throw new common_1.BadRequestException(`Aynı programda farklı derslerin ("${otherCourseInProgram.course.name}") sınavı aynı oturumda olamaz.`);
+        }
         const overlappingExam = await this.prisma.exam.findFirst({
             where: {
                 id: id ? { not: id } : undefined,

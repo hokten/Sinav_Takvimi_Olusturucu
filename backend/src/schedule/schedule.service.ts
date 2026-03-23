@@ -135,6 +135,33 @@ export class ScheduleService {
       }
     }
 
+    const targetCourse = await this.prisma.course.findUnique({ 
+      where: { id: courseId },
+      include: { program: true }
+    });
+    if (!targetCourse) throw new BadRequestException("Ders bulunamadı.");
+
+    // EXCLUSIVITY RULE: Same program cannot have different courses at the same time.
+    const otherCourseInProgram = await this.prisma.exam.findFirst({
+      where: {
+        id: id ? { not: id } : undefined,
+        programId: programId,
+        date,
+        time,
+        course: {
+          code: { not: targetCourse.code }
+        }
+      },
+      include: { course: true }
+    });
+    if (otherCourseInProgram) {
+      throw new BadRequestException(`Aynı programda farklı derslerin ("${otherCourseInProgram.course.name}") sınavı aynı oturumda olamaz.`);
+    }
+
+    // ALLOW DIFFERENT SECTIONS CONCURRENTLY
+    // We no longer block by code. Different sections have different courseIds.
+    // Overlaps by room/instructor/supervisor are caught by other checks.
+
     const overlappingExam = await this.prisma.exam.findFirst({
       where: { 
         id: id ? { not: id } : undefined, 
