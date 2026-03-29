@@ -5,6 +5,7 @@ import { deleteExam } from "@/app/actions/exams";
 export interface Session { user: { role: string; programIds?: string[]; name?: string; email?: string } }
 import { Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { getErrorMessage } from "@/lib/error-utils";
 
 interface Program { id: string; name: string; color: string; isSharedSource: boolean }
 interface ScheduleDay { id: string; date: string; sessions: string[] }
@@ -40,6 +41,7 @@ interface Props {
   onEditSupervisors: (exam: Exam) => void;
   onAddAtSlot?: (date: string, time: string) => void;
   onDeleteSuccess?: () => void;
+  onError?: (message: string) => void;
 }
 
 const DAYS_TR = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
@@ -58,7 +60,7 @@ function isBeforeNoon(time: string): boolean {
   return h < 12;
 }
 
-export function ExamTable({ program, editableProgramIds, scheduleDays, exams, rooms, session, onEdit, onEditSupervisors, onAddAtSlot, onDeleteSuccess }: Props) {
+export function ExamTable({ program, editableProgramIds, scheduleDays, exams, rooms, session, onEdit, onEditSupervisors, onAddAtSlot, onDeleteSuccess, onError }: Props) {
   const isAdmin = session.user.role === "ADMIN";
   const canEdit = isAdmin || editableProgramIds.includes(program.id);
 
@@ -76,7 +78,7 @@ export function ExamTable({ program, editableProgramIds, scheduleDays, exams, ro
       onDeleteSuccess?.();
     } catch (err) {
       setDeleteTarget(null);
-      alert(err instanceof Error ? err.message : "Hata oluştu.");
+      onError?.(getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -171,7 +173,16 @@ export function ExamTable({ program, editableProgramIds, scheduleDays, exams, ro
                   continue;
                 }
 
-                const totalDayRows = sortedSessions.length + (hasLunch ? 1 : 0);
+                const totalDayRows = (() => {
+                  let count = 0;
+                  for (const s of sortedSessions) {
+                    const sessionExams = exams.filter(
+                      (e) => e.date === day.date && e.time === s
+                    );
+                    count += Math.max(1, sessionExams.length);
+                  }
+                  return count + (hasLunch ? 1 : 0);
+                })();
                 let isFirstRowOfDay = true;
 
                 const renderSessionRows = (sessions: string[]) => {
@@ -339,9 +350,20 @@ export function ExamTable({ program, editableProgramIds, scheduleDays, exams, ro
                                 {getDayName(day.date)}
                               </td>
                             )}
-                            <td className="border border-black px-1 py-1 text-center whitespace-nowrap" style={{ borderColor: "black", borderTop: cellTopBorder, backgroundColor: cellBg, minWidth: "42px" }}>
-                              {sessionTime}
-                            </td>
+                            {i === 0 && (
+                              <td
+                                rowSpan={sessionExams.length}
+                                className="border border-black px-1 py-1 text-center whitespace-nowrap align-middle"
+                                style={{
+                                  borderColor: "black",
+                                  borderTop: cellTopBorder,
+                                  backgroundColor: cellBg,
+                                  minWidth: "42px",
+                                }}
+                              >
+                                {sessionTime}
+                              </td>
+                            )}
                             <td className="border border-black px-2 py-1 font-mono" style={{ borderColor: "black", borderTop: cellTopBorder, backgroundColor: cellBg }}>
                               {exam.course.code}
                               {exam.isShared && (

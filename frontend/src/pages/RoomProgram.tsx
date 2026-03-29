@@ -26,6 +26,7 @@ export default function RoomProgramPage() {
         
         setData({
           ...schedule,
+          exams: schedule.allExams || schedule.exams,
           userRole: schedule.session.user.role,
           userProgramId: schedule.session.user.programIds?.[0] || null,
           userProgramIds: schedule.session.user.programIds || [],

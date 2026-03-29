@@ -20,7 +20,30 @@ export class ScheduleController {
   @Get('data')
   async getScheduleData(@Request() req: any) {
     const isAdmin = req.user.role === 'ADMIN';
-    const userProgramIds = req.user.programIds || [];
+    let initialUserProgramIds = req.user.programIds || [];
+    let departmentId = req.user.departmentId;
+
+    // Fetch all programs in the user's department for DEPT_HEAD
+    let userProgramIds = [...initialUserProgramIds];
+    if (!departmentId || userProgramIds.length === 0) { // Changed from <= 1 to === 0 as a user might have 1 program and still need departmentId
+      const dbUser = (await this.prisma.user.findUnique({ 
+        where: { id: req.user.id },
+        include: { programs: true }
+      })) as any;
+      if (dbUser) {
+        departmentId = dbUser.departmentId;
+        userProgramIds = dbUser.programs.map((p: any) => p.programId);
+      }
+    }
+
+    if (!isAdmin && departmentId) {
+      const deptPrograms = await this.prisma.program.findMany({
+        where: { departmentId },
+        select: { id: true }
+      });
+      const deptProgramIds = deptPrograms.map(p => p.id);
+      userProgramIds = [...new Set([...userProgramIds, ...deptProgramIds])];
+    }
 
     const [
       programs,
@@ -66,19 +89,44 @@ export class ScheduleController {
       this.prisma.roomAssignment.findMany()
     ]);
     
+    // Fetch ALL exams for conflict detection and Salon Programı visibility
+    const allExamsData = await this.prisma.exam.findMany({
+      include: {
+        course: { include: { instructor: true, program: true } }, 
+        instructor: true, 
+        program: true,
+        deptSupervisors: true,
+        createdBy: { select: { role: true } }
+      },
+      orderBy: [{ date: 'asc' }, { time: 'asc' }]
+    });
+
+    const dbUser = await this.prisma.user.findUnique({ where: { id: req.user.id } });
+
     return {
       programs,
       editableProgramIds: programs.map(p => p.id),
       sharedSourceProgramIds: (await this.prisma.program.findMany({ where: { isSharedSource: true }, select: { id: true } })).map(p => p.id),
       scheduleDays,
       exams,
-      allExams: exams,
+      allExams: allExamsData,
       rooms,
       instructors,
       courses,
+      allPrograms: await this.prisma.program.findMany({ orderBy: { name: 'asc' } }),
+      allCourses: await this.prisma.course.findMany({ include: { instructor: true, program: true } }),
       roomAssignments,
-      approvedReservations: [],
-      session: { user: req.user }
+      approvedReservations: (await this.prisma.slotRequest.findMany({
+        where: { status: 'APPROVED' },
+        include: { fromProgram: { select: { name: true, color: true } } }
+      })).map(r => ({
+        roomId: r.roomId,
+        date: r.date,
+        time: r.time,
+        fromProgramId: r.fromProgramId,
+        fromProgram: r.fromProgram
+      })),
+      session: { user: { ...req.user, departmentId: (dbUser as any)?.departmentId } }
     };
   }
 
@@ -136,7 +184,9 @@ export class ScheduleController {
     if (!exam) throw new Error("Sınav bulunamadı.");
     if (!exam.isShared) throw new Error("Bu sınav paylaşımlı değil.");
 
-    if (req.user.role !== 'ADMIN' && !req.user.programIds.includes(programId)) {
+    const dbUser = await this.prisma.user.findUnique({ where: { id: req.user.id } });
+    const targetProgram = await this.prisma.program.findUnique({ where: { id: programId } });
+    if (req.user.role !== 'ADMIN' && !req.user.programIds.includes(programId) && (dbUser as any)?.departmentId !== targetProgram?.departmentId) {
       throw new Error("Yetkiniz yok.");
     }
 
@@ -160,7 +210,9 @@ export class ScheduleController {
     if (exam.createdBy.role !== 'ADMIN') throw new Error("Bu sınav admin tarafından oluşturulmamış.");
     if (exam.supervisorIds.length > 0 && req.user.role !== 'ADMIN') throw new Error("Bu sınavın gözetmenleri zaten belirlenmiş.");
 
-    if (req.user.role !== 'ADMIN' && !req.user.programIds.includes(exam.programId)) {
+    const dbUser = await this.prisma.user.findUnique({ where: { id: req.user.id } });
+    const targetProgram = await this.prisma.program.findUnique({ where: { id: exam.programId } });
+    if (req.user.role !== 'ADMIN' && !req.user.programIds.includes(exam.programId) && (dbUser as any)?.departmentId !== targetProgram?.departmentId) {
       throw new Error("Yetki yok.");
     }
     await this.prisma.exam.update({ where: { id }, data: { supervisorIds } });

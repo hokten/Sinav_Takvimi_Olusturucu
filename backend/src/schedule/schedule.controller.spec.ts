@@ -17,6 +17,7 @@ describe('ScheduleController', () => {
         {
           provide: PrismaService,
           useValue: {
+            user: { findUnique: jest.fn() },
             program: { findUnique: jest.fn(), findMany: jest.fn() },
             exam: { 
               findFirst: jest.fn(), 
@@ -26,7 +27,7 @@ describe('ScheduleController', () => {
               delete: jest.fn(),
               findMany: jest.fn()
             },
-            slotRequest: { findFirst: jest.fn() },
+            slotRequest: { findFirst: jest.fn(), findMany: jest.fn() },
             scheduleDay: { findMany: jest.fn() },
             room: { findMany: jest.fn() },
             instructor: { findMany: jest.fn() },
@@ -124,18 +125,25 @@ describe('ScheduleController', () => {
       const mockPrograms = [{ id: 'p1', isSharedSource: false }, { id: 'p2', isSharedSource: true }];
       const mockExams = [{ id: 'e1', programId: 'p1', isShared: false }, { id: 'e2', programId: 'p2', isShared: true }];
       
-      jest.spyOn(prisma.program, 'findMany').mockResolvedValue(mockPrograms as any);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ id: 'user1', departmentId: 'dept1', programs: [{ programId: 'p1' }] } as any);
+      jest.spyOn(prisma.program, 'findMany')
+        .mockResolvedValueOnce([{ id: 'p1' }] as any) // dept check
+        .mockResolvedValueOnce(mockPrograms as any) // main fetch
+        .mockResolvedValueOnce([{ id: 'p2' }] as any) // shared check
+        .mockResolvedValueOnce(mockPrograms as any); // allPrograms fetch
+
       jest.spyOn(prisma.scheduleDay, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.exam, 'findMany').mockResolvedValue(mockExams as any);
       jest.spyOn(prisma.room, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.instructor, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.course, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.roomAssignment, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.slotRequest, 'findMany').mockResolvedValue([]);
 
       const result = await controller.getScheduleData(req);
 
       expect(prisma.program.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: { in: ['p1'] } }
+        where: expect.objectContaining({ id: { in: expect.arrayContaining(['p1']) } })
       }));
       expect(prisma.exam.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { OR: [{ programId: { in: ['p1'] } }, { isShared: true }] }
@@ -147,13 +155,20 @@ describe('ScheduleController', () => {
     it('admin ise tüm verileri dönmeli', async () => {
       const req = { user: { role: 'ADMIN' } };
       
-      jest.spyOn(prisma.program, 'findMany').mockResolvedValue([{ id: 'p1' }, { id: 'p2' }] as any);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ id: 'admin1', departmentId: 'dept1', programs: [] } as any);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ id: 'admin1', departmentId: 'dept1', programs: [] } as any);
+      jest.spyOn(prisma.program, 'findMany')
+        .mockResolvedValueOnce([{ id: 'p1' }, { id: 'p2' }] as any) // main fetch
+        .mockResolvedValueOnce([{ id: 'p3' }] as any) // shared check
+        .mockResolvedValueOnce([{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }] as any); // allPrograms fetch
+
       jest.spyOn(prisma.scheduleDay, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.exam, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.room, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.instructor, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.course, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.roomAssignment, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.slotRequest, 'findMany').mockResolvedValue([]);
 
       await controller.getScheduleData(req);
 

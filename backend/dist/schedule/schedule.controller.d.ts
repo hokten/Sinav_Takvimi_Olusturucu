@@ -215,12 +215,61 @@ export declare class ScheduleController {
             quota: number;
             adminOnly: boolean;
         })[];
+        allPrograms: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            name: string;
+            color: string;
+            isSharedSource: boolean;
+            departmentId: string;
+        }[];
+        allCourses: ({
+            instructor: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                mainProgramId: string;
+                sideProgramIds: string[];
+            };
+            program: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
+                color: string;
+                isSharedSource: boolean;
+                departmentId: string;
+            };
+        } & {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            instructorId: string;
+            programId: string;
+            name: string;
+            code: string;
+            section: number;
+            grade: number;
+            quota: number;
+            adminOnly: boolean;
+        })[];
         roomAssignments: {
             id: string;
             programId: string;
             roomId: string;
         }[];
-        approvedReservations: never[];
+        approvedReservations: {
+            roomId: string;
+            date: string;
+            time: string;
+            fromProgramId: string;
+            fromProgram: {
+                name: string;
+                color: string;
+            };
+        }[];
         session: {
             user: any;
         };

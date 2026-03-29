@@ -28,7 +28,12 @@ export class UsersService {
 
   async create(data: any) {
     const { departmentId, ...userData } = data;
-    const user = await this.prisma.user.create({ data: userData });
+    const user = await this.prisma.user.create({ 
+      data: { 
+        ...userData, 
+        departmentId: userData.role === 'DEPT_HEAD' ? departmentId : null 
+      } 
+    });
     
     if (departmentId && userData.role === 'DEPT_HEAD') {
       const programs = await this.prisma.program.findMany({ where: { departmentId } });
@@ -43,7 +48,13 @@ export class UsersService {
 
   async update(id: string, data: any) {
     const { departmentId, ...userData } = data;
-    const user = await this.prisma.user.update({ where: { id }, data: userData });
+    const user = await this.prisma.user.update({ 
+      where: { id }, 
+      data: { 
+        ...userData, 
+        departmentId: userData.role === 'DEPT_HEAD' ? departmentId : (userData.role === 'ADMIN' ? null : undefined)
+      } 
+    });
 
     if (userData.role === 'ADMIN') {
       await this.prisma.userProgram.deleteMany({ where: { userId: id } });
@@ -61,5 +72,12 @@ export class UsersService {
 
   async remove(id: string) {
     return this.prisma.user.delete({ where: { id } });
+  }
+
+  async updateDepartmentId(userId: string, departmentId: string) {
+    return (this.prisma.user as any).update({
+      where: { id: userId },
+      data: { departmentId }
+    });
   }
 }

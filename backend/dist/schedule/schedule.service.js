@@ -34,10 +34,24 @@ let ScheduleService = class ScheduleService {
         if (user.role !== 'ADMIN') {
             const targetProgramId = body.programId || existing?.programId;
             const targetProgram = await this.prisma.program.findUnique({ where: { id: targetProgramId } });
+            let departmentId = user.departmentId;
+            let userProgramIds = user.programIds || [];
+            if (!departmentId || userProgramIds.length <= 1) {
+                const dbUser = (await this.prisma.user.findUnique({
+                    where: { id: user.id },
+                    include: { programs: true }
+                }));
+                if (dbUser) {
+                    departmentId = dbUser.departmentId;
+                    userProgramIds = dbUser.programs.map((p) => p.programId);
+                }
+            }
             if (!id && targetProgram?.isSharedSource) {
                 throw new common_1.ForbiddenException("Paylaşımlı (Genel) programa sınav ekleme yetkiniz yok.");
             }
-            if (!targetProgramId || !user.programIds.includes(targetProgramId)) {
+            const isUserProgram = userProgramIds.includes(targetProgramId);
+            const isDeptProgram = departmentId && targetProgram?.departmentId === departmentId;
+            if (!targetProgramId || (!isUserProgram && !isDeptProgram)) {
                 throw new common_1.ForbiddenException("Bu program için sınav yönetme yetkiniz yok.");
             }
             if (existing) {
@@ -64,7 +78,9 @@ let ScheduleService = class ScheduleService {
             if (supervisorIds.length !== roomIds.length) {
                 throw new common_1.BadRequestException("Atanan gözetmen sayısı, seçilen derslik sayısına eşit olmalıdır (Her salona bir gözetmen).");
             }
-            const busySupervisor = await this.prisma.exam.findFirst({
+        }
+        if (supervisorIds && supervisorIds.length > 0) {
+            const busyAsSup = await this.prisma.exam.findFirst({
                 where: {
                     id: id ? { not: id } : undefined,
                     date,
@@ -73,28 +89,54 @@ let ScheduleService = class ScheduleService {
                 },
                 include: { course: true }
             });
-            if (busySupervisor) {
-                const overlappingName = supervisorIds.find((s) => busySupervisor.supervisorIds.includes(s));
-                throw new common_1.BadRequestException(`Gözetmen "${overlappingName}" bu saatte "${busySupervisor.course.name}" sınavında görevli.`);
+            if (busyAsSup) {
+                const name = supervisorIds.find((s) => busyAsSup.supervisorIds.includes(s));
+                throw new common_1.BadRequestException(`Gözetmen "${name}" bu saatte "${busyAsSup.course.name}" sınavında zaten gözetmen.`);
+            }
+            const busyAsInst = await this.prisma.exam.findFirst({
+                where: {
+                    id: id ? { not: id } : undefined,
+                    date,
+                    time,
+                    instructor: { name: { in: supervisorIds } }
+                },
+                include: { course: true, instructor: true }
+            });
+            if (busyAsInst) {
+                throw new common_1.BadRequestException(`Gözetmen "${busyAsInst.instructor.name}" bu saatte "${busyAsInst.course.name}" sınavının ders sorumlusu olduğu için gözetmenlik yapamaz.`);
             }
         }
         const courseId = body.courseId || existing?.courseId;
         const instructorId = body.instructorId || existing?.instructorId;
+        const instructor = instructorId ? await this.prisma.instructor.findUnique({ where: { id: instructorId } }) : null;
         if (courseId) {
             const duplicateCourseExam = await this.prisma.exam.findFirst({
-                where: {
-                    id: id ? { not: id } : undefined,
-                    courseId,
-                    date,
-                    time
-                }
+                where: { id: id ? { not: id } : undefined, courseId, date, time }
             });
             if (duplicateCourseExam) {
-                throw new common_1.BadRequestException("Bu dersin bu saatte zaten bir sınavı var. Mevcut sınavı düzenleyerek yeni derslikler ekleyebilirsiniz.");
+                throw new common_1.BadRequestException("Bu dersin bu saatte zaten bir sınavı var.");
             }
         }
-        if (instructorId) {
-            const instructorConflict = await this.prisma.exam.findFirst({
+        const targetCourse = courseId ? await this.prisma.course.findUnique({
+            where: { id: courseId },
+            include: { program: true }
+        }) : null;
+        if (!targetCourse && courseId)
+            throw new common_1.BadRequestException("Ders bulunamadı.");
+        if (instructorId && instructor) {
+            const busyAsSup = await this.prisma.exam.findFirst({
+                where: {
+                    id: id ? { not: id } : undefined,
+                    date,
+                    time,
+                    supervisorIds: { has: instructor.name }
+                },
+                include: { course: true }
+            });
+            if (busyAsSup) {
+                throw new common_1.BadRequestException(`Hoca "${instructor.name}" bu saatte "${busyAsSup.course.name}" sınavında gözetmen olduğu için başka bir sınava atanamaz.`);
+            }
+            const otherInstRole = await this.prisma.exam.findFirst({
                 where: {
                     id: id ? { not: id } : undefined,
                     instructorId,
@@ -102,47 +144,28 @@ let ScheduleService = class ScheduleService {
                     time,
                     courseId: { not: courseId }
                 },
-                include: { course: true }
+                include: { course: { include: { program: true } } }
             });
-            if (instructorConflict) {
-                throw new common_1.BadRequestException(`Sorumlu hoca bu saatte zaten "${instructorConflict.course.name}" sınavından sorumlu.`);
-            }
-            const instructor = await this.prisma.instructor.findUnique({ where: { id: instructorId } });
-            if (instructor) {
-                const instructorBusyElsewhere = await this.prisma.exam.findFirst({
-                    where: {
-                        id: id ? { not: id } : undefined,
-                        date,
-                        time,
-                        supervisorIds: { has: instructor.name }
-                    },
-                    include: { course: true }
-                });
-                if (instructorBusyElsewhere) {
-                    throw new common_1.BadRequestException(`Sorumlu hoca "${instructor.name}" bu saatte "${instructorBusyElsewhere.course.name}" sınavında gözetmen olarak görevli.`);
+            if (otherInstRole && targetCourse) {
+                if (otherInstRole.course.programId === targetCourse.programId) {
+                    throw new common_1.BadRequestException(`Hoca "${instructor.name}" aynı programda ("${targetCourse.program.name}") bu saatte zaten "${otherInstRole.course.name}" sınavından sorumlu.`);
                 }
             }
         }
-        const targetCourse = await this.prisma.course.findUnique({
-            where: { id: courseId },
-            include: { program: true }
-        });
-        if (!targetCourse)
-            throw new common_1.BadRequestException("Ders bulunamadı.");
-        const otherCourseInProgram = await this.prisma.exam.findFirst({
-            where: {
-                id: id ? { not: id } : undefined,
-                programId: programId,
-                date,
-                time,
-                course: {
-                    code: { not: targetCourse.code }
-                }
-            },
-            include: { course: true }
-        });
-        if (otherCourseInProgram) {
-            throw new common_1.BadRequestException(`Aynı programda farklı derslerin ("${otherCourseInProgram.course.name}") sınavı aynı oturumda olamaz.`);
+        if (targetCourse) {
+            const otherCourseInProgram = await this.prisma.exam.findFirst({
+                where: {
+                    id: id ? { not: id } : undefined,
+                    programId: targetCourse.programId,
+                    date,
+                    time,
+                    course: { code: { not: targetCourse.code } }
+                },
+                include: { course: true }
+            });
+            if (otherCourseInProgram) {
+                throw new common_1.BadRequestException(`Aynı programda farklı derslerin ("${otherCourseInProgram.course.name}") sınavı aynı oturumda olamaz.`);
+            }
         }
         const overlappingExam = await this.prisma.exam.findFirst({
             where: {
@@ -168,6 +191,18 @@ let ScheduleService = class ScheduleService {
         });
         if (overlappingRequest) {
             throw new common_1.BadRequestException(`Seçilen salon bu saatte "${overlappingRequest.fromProgram.name}" programına rezerve edilmiş.`);
+        }
+        const pendingRequest = await this.prisma.slotRequest.findFirst({
+            where: {
+                date,
+                time,
+                roomId: { in: roomIds },
+                status: 'PENDING'
+            },
+            include: { room: true }
+        });
+        if (pendingRequest) {
+            throw new common_1.BadRequestException(`"${pendingRequest.room.name}" salonu için bekleyen bir rezervasyon talebi var. Lütfen önce bu talebi (onaylayarak veya reddederek) sonuçlandırın.`);
         }
     }
     async createExam(body, user) {
@@ -215,7 +250,22 @@ let ScheduleService = class ScheduleService {
                 throw new common_1.ForbiddenException("Paylaşımlı sınav silinemez.");
             if (existing.createdBy.role === 'ADMIN')
                 throw new common_1.ForbiddenException("Admin sınavı silinemez.");
-            if (!user.programIds.includes(existing.programId)) {
+            const targetProgram = await this.prisma.program.findUnique({ where: { id: existing.programId } });
+            let departmentId = user.departmentId;
+            let userProgramIds = user.programIds || [];
+            if (!departmentId || userProgramIds.length <= 1) {
+                const dbUser = await this.prisma.user.findUnique({
+                    where: { id: user.id },
+                    include: { programs: true }
+                });
+                if (dbUser) {
+                    departmentId = dbUser.departmentId;
+                    userProgramIds = dbUser.programs.map((p) => p.programId);
+                }
+            }
+            const isUserProgram = userProgramIds.includes(existing.programId);
+            const isDeptProgram = departmentId && targetProgram?.departmentId === departmentId;
+            if (!isUserProgram && !isDeptProgram) {
                 throw new common_1.ForbiddenException("Bu program için sınav yönetme yetkiniz yok.");
             }
         }

@@ -18,6 +18,7 @@ describe('RequestsService', () => {
           useValue: {
             $transaction: jest.fn().mockImplementation(async (cb) => cb(prisma)),
             slotRequest: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+            exam: { findFirst: jest.fn() },
             room: { findUnique: jest.fn() },
             slotRequestApproval: { upsert: jest.fn(), findMany: jest.fn() }
           }

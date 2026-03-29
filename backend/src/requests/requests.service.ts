@@ -48,6 +48,18 @@ export class RequestsService {
       throw new BadRequestException("Bu salon zaten programınıza atanmış durumda, kendi salonunuz için talep oluşturamazsınız.");
     }
 
+    // Check if an exam already exists in this slot
+    const existingExam = await this.prisma.exam.findFirst({
+      where: {
+        roomIds: { has: data.roomId },
+        date: data.date,
+        time: data.time,
+      },
+    });
+    if (existingExam) {
+      throw new BadRequestException("Bu slotta halihazırda bir sınav planlanmıştır, talep oluşturamazsınız.");
+    }
+
     const approvedSlot = await this.prisma.slotRequest.findFirst({
       where: {
         roomId: data.roomId,

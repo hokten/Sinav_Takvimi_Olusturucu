@@ -56,6 +56,16 @@ let RequestsService = class RequestsService {
         if (room && room.assignments.some(a => a.programId === data.programId)) {
             throw new common_1.BadRequestException("Bu salon zaten programınıza atanmış durumda, kendi salonunuz için talep oluşturamazsınız.");
         }
+        const existingExam = await this.prisma.exam.findFirst({
+            where: {
+                roomIds: { has: data.roomId },
+                date: data.date,
+                time: data.time,
+            },
+        });
+        if (existingExam) {
+            throw new common_1.BadRequestException("Bu slotta halihazırda bir sınav planlanmıştır, talep oluşturamazsınız.");
+        }
         const approvedSlot = await this.prisma.slotRequest.findFirst({
             where: {
                 roomId: data.roomId,

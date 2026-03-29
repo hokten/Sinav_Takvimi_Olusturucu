@@ -173,10 +173,13 @@ export function ScheduleDocument({
     ? courses
     : courses.filter((c) => editableProgramIds.includes(c.programId));
 
+  const departmentProgramIds = programs.map((p) => p.id);
   const programInstructors = instructors.filter(
     (i) =>
-      i.mainProgramId === activeProgramId ||
-      (i as { sideProgramIds?: string[] }).sideProgramIds?.includes(activeProgramId)
+      departmentProgramIds.includes(i.mainProgramId) ||
+      (i as any).sideProgramIds?.some((id: string) =>
+        departmentProgramIds.includes(id)
+      )
   );
 
   return (
@@ -276,6 +279,7 @@ export function ScheduleDocument({
           onEditSupervisors={handleEditSupervisors}
           onAddAtSlot={handleAddAtSlot}
           onDeleteSuccess={handleDeleteSuccess}
+          onError={handleModalError}
         />
       )}
 
@@ -287,7 +291,7 @@ export function ScheduleDocument({
           scheduleDays={scheduleDays}
           courses={modalCourses}
           rooms={rooms}
-          instructors={instructors}
+          instructors={isAdmin ? instructors : programInstructors}
           roomAssignments={roomAssignments}
           existingExams={allExams}
           approvedReservations={approvedReservations}
@@ -309,6 +313,7 @@ export function ScheduleDocument({
               ? (supervisorExam.deptSupervisors.find((ds) => ds.programId === activeProgramId)?.supervisorIds ?? [])
               : supervisorExam.supervisorIds
           }
+          existingExams={allExams}
           onClose={() => setSupervisorExam(null)}
           onSave={async (ids: string[]) => {
             if (supervisorExam.isShared) {

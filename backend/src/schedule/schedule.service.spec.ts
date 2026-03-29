@@ -10,6 +10,9 @@ describe('ScheduleService', () => {
   let gateway: ScheduleGateway;
 
   const mockPrisma = {
+    user: {
+      findUnique: jest.fn(),
+    },
     exam: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -90,49 +93,75 @@ describe('ScheduleService', () => {
         supervisorIds: ['s1'] 
       });
       await expect(service.validateExam(null, validBody, user))
-        .rejects.toThrow('Gözetmen "s1" bu saatte "Diğer Sınav" sınavında görevli.');
+        .rejects.toThrow('Gözetmen "s1" bu saatte "Diğer Sınav" sınavında zaten gözetmen.');
     });
 
     it('aynı ders için mükerrer sınav oluşturulmaya çalışılırsa BadRequestException fırlatmalı', async () => {
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // 1. supervisor
-        .mockResolvedValueOnce({ id: 'e-old' }); // 2. duplicate courseId
+        .mockResolvedValueOnce(null) // 1. busyAsSup
+        .mockResolvedValueOnce(null) // 2. busyAsInst
+        .mockResolvedValueOnce({ id: 'existing-id' }); // 3. duplicateCourseExam
       await expect(service.validateExam(null, validBody, user))
         .rejects.toThrow("Bu dersin bu saatte zaten bir sınavı var.");
     });
 
-    it('hoca aynı saatte farklı bir dersin sınavında ise BadRequestException fırlatmalı', async () => {
+    it('hoca aynı saatte farklı bir dersin sınavında ise (aynı program) BadRequestException fırlatmalı', async () => {
+      mockPrisma.instructor.findUnique.mockResolvedValueOnce({ id: 'i1', name: 'Hoca 1' });
+      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c1', programId: 'p1', program: { name: 'P1' } }); // for currentCourse
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // 1. supervisor
-        .mockResolvedValueOnce(null) // 2. duplicate courseId
-        .mockResolvedValueOnce({ course: { name: 'Diğer Ders' } }); // 3. instructor conflict
+        .mockResolvedValueOnce(null) // 1. busyAsSup (Sup vs Sup)
+        .mockResolvedValueOnce(null) // 2. busyAsInst (Sup vs Inst)
+        .mockResolvedValueOnce(null) // 3. duplicateCourseExam
+        .mockResolvedValueOnce(null) // 4. busyAsSup (Inst vs Sup)
+        .mockResolvedValueOnce({ 
+          course: { name: 'Diğer Ders', programId: 'p1' }, 
+          instructor: { name: 'Hoca 1' } 
+        }); // 5. otherInstRole (same program)
+      
       await expect(service.validateExam(null, validBody, user))
-        .rejects.toThrow('Sorumlu hoca bu saatte zaten "Diğer Ders" sınavından sorumlu.');
+        .rejects.toThrow('Hoca "Hoca 1" aynı programda ("P1") bu saatte zaten "Diğer Ders" sınavından sorumlu.');
+    });
+
+    it('hoca farklı programda ders sorumlusu ise İZİN VERMELİ', async () => {
+      mockPrisma.instructor.findUnique.mockResolvedValueOnce({ id: 'i1', name: 'Hoca 1' });
+      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c1', programId: 'p1' }); // for targetCourse
+      mockPrisma.exam.findFirst
+        .mockResolvedValueOnce(null) // 1. busyAsSup
+        .mockResolvedValueOnce(null) // 2. busyAsInst
+        .mockResolvedValueOnce(null) // 3. duplicate
+        .mockResolvedValueOnce(null) // 4. busyAsSup
+        .mockResolvedValueOnce({ course: { name: 'Diğer Program Ders', programId: 'p2' } }) // 5. otherInstRole (diff program)
+        .mockResolvedValueOnce(null); // 6. otherCourseInProgram
+
+      await expect(service.validateExam(null, validBody, user))
+        .resolves.not.toThrow();
     });
 
     it('sorumlu hoca başka sınavda gözetmen ise BadRequestException fırlatmalı', async () => {
       mockPrisma.instructor.findUnique.mockResolvedValueOnce({ name: 'Hoca 1' });
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // supervisor
-        .mockResolvedValueOnce(null) // duplicate
-        .mockResolvedValueOnce(null) // instructor conflict
+        .mockResolvedValueOnce(null) // 1. busyAsSup (Sup vs Sup)
+        .mockResolvedValueOnce(null) // 2. busyAsInst (Sup vs Inst)
+        .mockResolvedValueOnce(null) // 3. duplicate
         .mockResolvedValueOnce({ 
-          course: { name: 'Gözetmenlik Yaptığı Sınav' },
-          supervisorIds: ['Hoca 1']
-        }); // instructor busy as supervisor
+          course: { name: 'Gözetmenlik Yaptığı Sınav' }
+        }); // 4. busyAsSup (Inst vs Sup)
       
       await expect(service.validateExam(null, { ...validBody, instructorId: 'i1' }, user))
-        .rejects.toThrow('Sorumlu hoca "Hoca 1" bu saatte "Gözetmenlik Yaptığı Sınav" sınavında gözetmen olarak görevli.');
+        .rejects.toThrow('Hoca "Hoca 1" bu saatte "Gözetmenlik Yaptığı Sınav" sınavında gözetmen olduğu için başka bir sınava atanamaz.');
     });
 
     it('salon çakışması durumunda BadRequestException fırlatmalı', async () => {
-      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c1', code: 'C1' });
+      mockPrisma.instructor.findUnique.mockResolvedValueOnce({ name: 'Hoca 1' });
+      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c1' }); // targetCourse
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // 1. supervisor
-        .mockResolvedValueOnce(null) // 2. duplicate ID
-        .mockResolvedValueOnce(null) // 3. inst conflict
-        .mockResolvedValueOnce(null) // 4. same program exclusivity
-        .mockResolvedValueOnce({ course: { name: 'Dolu Sınav' } }); // 5. room overlap
+        .mockResolvedValueOnce(null) // 1. busyAsSup
+        .mockResolvedValueOnce(null) // 2. busyAsInst
+        .mockResolvedValueOnce(null) // 3. duplicate courseId
+        .mockResolvedValueOnce(null) // 4. busyAsSup
+        .mockResolvedValueOnce(null) // 5. otherInstRole
+        .mockResolvedValueOnce(null) // 6. otherCourseInProgram
+        .mockResolvedValueOnce({ course: { name: 'Dolu Sınav' } }); // 7. room overlap
       
       await expect(service.validateExam(null, validBody, user))
         .rejects.toThrow('Seçilen salonlardan biri bu saatte "Dolu Sınav" sınavı/dersliği için dolu.');
@@ -144,6 +173,17 @@ describe('ScheduleService', () => {
       });
       await expect(service.validateExam(null, validBody, user))
         .rejects.toThrow('Seçilen salon bu saatte "Diğer Program" programına rezerve edilmiş.');
+    });
+
+    it('salon için bekleyen talep varsa BadRequestException fırlatmalı', async () => {
+      mockPrisma.slotRequest.findFirst
+        .mockResolvedValueOnce(null) // for APPROVED check
+        .mockResolvedValueOnce({ 
+          room: { name: 'Salon A' },
+          status: 'PENDING'
+        }); // for PENDING check
+      await expect(service.validateExam(null, validBody, user))
+        .rejects.toThrow('"Salon A" salonu için bekleyen bir rezervasyon talebi var. Lütfen önce bu talebi (onaylayarak veya reddederek) sonuçlandırın.');
     });
 
     it('yetkisiz kullanıcı düzenlemeye çalışırsa ForbiddenException fırlatmalı', async () => {
@@ -198,12 +238,15 @@ describe('ScheduleService', () => {
     });
 
     it('aynı programda farklı derslerin aynı anda sınavı engellenmeli', async () => {
-      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c-1', code: 'BIL-101' });
+      mockPrisma.instructor.findUnique.mockResolvedValueOnce({ name: 'H1' });
+      mockPrisma.course.findUnique.mockResolvedValueOnce({ id: 'c-1', code: 'BIL-101', programId: 'p1' });
       mockPrisma.exam.findFirst
-        .mockResolvedValueOnce(null) // 1. supervisor
-        .mockResolvedValueOnce(null) // 2. duplicate ID
-        .mockResolvedValueOnce(null) // 3. inst conflict
-        .mockResolvedValueOnce({ course: { name: 'Diğer Ders', code: 'MAT-101' } }); // 4. same program exclusivity
+        .mockResolvedValueOnce(null) // 1. busyAsSup
+        .mockResolvedValueOnce(null) // 2. busyAsInst
+        .mockResolvedValueOnce(null) // 3. duplicate courseId
+        .mockResolvedValueOnce(null) // 4. busyAsSup
+        .mockResolvedValueOnce(null) // 5. otherInstRole
+        .mockResolvedValueOnce({ course: { name: 'Diğer Ders', code: 'MAT-101' } }); // 6. same program exclusivity
       
       await expect(service.validateExam(null, { ...validBody, courseId: 'c-1' }, user))
         .rejects.toThrow('Aynı programda farklı derslerin ("Diğer Ders") sınavı aynı oturumda olamaz.');

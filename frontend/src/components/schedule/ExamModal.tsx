@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createExam, updateExam } from "@/app/actions/exams";
+import { getErrorMessage } from "@/lib/error-utils";
 import { X } from "lucide-react";
 import { examSchema } from "../../lib/validations";
 
@@ -202,9 +203,15 @@ export function ExamModal({
     : [];
   const occupiedRoomIds = new Set(examsAtSlot.flatMap((e) => e.roomIds));
   const busySupervisorNames = new Set(examsAtSlot.flatMap((e) => e.supervisorIds));
+  const instructorMap = new Map(instructors.map((i) => [i.id, i.name]));
+  const busyInstructorIds = new Set(examsAtSlot.map((e) => e.instructorId));
+  const busyInstructorNamesFromIds = new Set(
+    Array.from(busyInstructorIds)
+      .map((id) => instructorMap.get(id))
+      .filter(Boolean) as string[]
+  );
 
-  const availableInstructors = instructors.filter((i) => !busySupervisorNames.has(i.name));
-  const unavailableInstructors = instructors.filter((i) => busySupervisorNames.has(i.name));
+  const allBusyNames = new Set([...busySupervisorNames, ...busyInstructorNamesFromIds]);
 
   const assignedRooms = rooms.filter((r) => assignedRoomIds.has(r.id));
   const availableRooms = assignedRooms.filter((r) => !occupiedRoomIds.has(r.id));
@@ -316,7 +323,7 @@ export function ExamModal({
         onSuccess("Sınav eklendi.");
       }
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Hata oluştu.");
+      onError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -462,12 +469,15 @@ export function ExamModal({
                   const isReservedByOther = reservedByOtherRoomIds.has(room.id);
                   const isSelected = roomIds.includes(room.id);
                   const reservation = reservationByRoom.get(room.id);
+                  const isMyReservation = !isAdmin && approvedRequestRoomIds.has(room.id) && !baseAssignedRoomIds.has(room.id);
                   const isBlocked = isOccupied || isReservedByOther;
 
                   const tooltipText = isReservedByOther
                     ? `Bu saatte ${reservation?.fromProgram.name ?? "başka bölüm"} için rezerve`
                     : isOccupied
                     ? "Bu saatte başka sınav var"
+                    : isMyReservation
+                    ? "Onaylı rezervasyonunuz"
                     : room.capacity > 0
                     ? `${room.capacity} kişilik`
                     : undefined;
@@ -486,12 +496,15 @@ export function ExamModal({
                           ? "bg-red-50 border-red-300 text-red-400 cursor-not-allowed line-through"
                           : isSelected
                           ? "bg-blue-600 border-blue-600 text-white"
+                          : isMyReservation
+                          ? "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
                           : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
+                      {isMyReservation && <span className="mr-1">✓</span>}
                       {room.name}
                       {room.capacity > 0 && !isBlocked && (
-                        <span className={`ml-1 ${isSelected ? "text-blue-200" : "text-gray-400"}`}>
+                        <span className={`ml-1 ${isSelected ? "text-blue-200" : (isMyReservation ? "text-emerald-500" : "text-gray-400")}`}>
                           ({room.capacity})
                         </span>
                       )}
@@ -544,90 +557,73 @@ export function ExamModal({
           </div>
 
           {/* Gözetmenler */}
-          <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Gözetmenler
-                {roomIds.length > 0 && (
-                  <span className={`text-xs font-medium ml-2 px-1.5 py-0.5 rounded ${
-                    supervisorIds.length === roomIds.length
-                      ? "bg-green-100 text-green-700"
-                      : "bg-orange-100 text-orange-700"
-                  }`}>
-                    {supervisorIds.length}/{roomIds.length} gözetmen
-                  </span>
-                )}
-                {hasSlotSelected && (
-                  <span className="text-xs font-normal text-gray-500 ml-2">
-                    ({availableInstructors.length} müsait)
-                  </span>
-                )}
-              </label>
-
-              {instructors.length > 0 ? (
-                <>
-                  {availableInstructors.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {availableInstructors.map((instructor) => {
-                        const isSelected = supervisorIds.includes(instructor.name);
-                        return (
-                          <button
-                            key={instructor.id}
-                            type="button"
-                            onClick={() => toggleSupervisor(instructor.name)}
-                            className={`px-2.5 py-1 text-xs rounded border transition-colors ${
-                              isSelected
-                                ? "bg-yellow-400 border-yellow-500 text-yellow-900 font-medium"
-                                : "bg-white border-gray-300 text-gray-700 hover:bg-yellow-50 hover:border-yellow-300"
-                            }`}
-                          >
-                            {instructor.name}
-                            {isSelected && " ✓"}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {hasSlotSelected && unavailableInstructors.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {unavailableInstructors.map((instructor) => (
-                        <span
-                          key={instructor.id}
-                          title="Bu saatte başka görevi var"
-                          className="px-2.5 py-1 text-xs rounded border bg-gray-50 border-gray-200 text-gray-400 line-through cursor-not-allowed"
-                        >
-                          {instructor.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-xs text-gray-400">Bölümünüzde kayıtlı öğretim elemanı yok.</p>
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Gözetmenler
+              {roomIds.length > 0 && (
+                <span className={`text-xs font-medium ml-2 px-1.5 py-0.5 rounded ${
+                  supervisorIds.length === roomIds.length
+                    ? "bg-green-100 text-green-700"
+                    : "bg-orange-100 text-orange-700"
+                }`}>
+                  {supervisorIds.length}/{roomIds.length} gözetmen
+                </span>
               )}
+            </label>
 
-              {supervisorIds.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {supervisorIds.map((s) => (
-                    <span
-                      key={s}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded border border-yellow-300"
+            {instructors.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {instructors.map((instructor) => {
+                  const isBusy = allBusyNames.has(instructor.name);
+                  const isSelected = supervisorIds.includes(instructor.name);
+
+                  return (
+                    <button
+                      key={instructor.id}
+                      type="button"
+                      onClick={() => toggleSupervisor(instructor.name)}
+                      disabled={isBusy}
+                      className={`px-3 py-1.5 text-xs rounded-md border transition-all text-left flex flex-col gap-0.5 ${
+                        isBusy
+                          ? "bg-red-50 border-red-200 text-red-400 cursor-not-allowed opacity-60 line-through"
+                          : isSelected
+                          ? "bg-blue-600 border-blue-600 text-white shadow-sm ring-2 ring-blue-100 font-medium"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+                      }`}
+                      title={isBusy ? "Bu saatte başka görevi var" : ""}
                     >
-                      {s}
-                      <button
-                        type="button"
-                        onClick={() => setSupervisorIds((prev) => prev.filter((x) => x !== s))}
-                        className="hover:text-red-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+                      <span>{instructor.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Bölümünüzde kayıtlı öğretim elemanı yok.</p>
+            )}
 
-          <div className="flex justify-end gap-2 pt-2">
+            {supervisorIds.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-gray-50">
+                <span className="text-[10px] uppercase font-bold text-gray-400 w-full mb-1">Seçilenler:</span>
+                {supervisorIds.map((s) => (
+                  <span
+                    key={s}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200"
+                  >
+                    {s}
+                    <button
+                      type="button"
+                      onClick={() => setSupervisorIds((prev) => prev.filter((x) => x !== s))}
+                      className="hover:text-red-600 font-bold ml-1"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-6">
             <button
               type="button"
               onClick={onClose}
@@ -637,7 +633,7 @@ export function ExamModal({
             </button>
             <button
               type="submit"
-              disabled={loading || isUnderCapacity || (isSharedCourse && supervisorIds.length !== roomIds.length) || (!isSharedCourse && supervisorIds.length > 0 && supervisorIds.length !== roomIds.length) || (!isAdmin && supervisorIds.length !== roomIds.length)}
+              disabled={loading || isUnderCapacity || (supervisorIds.length > 0 && supervisorIds.length !== roomIds.length)}
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "Kaydediliyor..." : exam ? "Güncelle" : "Ekle"}

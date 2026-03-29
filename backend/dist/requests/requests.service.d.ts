@@ -14,9 +14,9 @@ export declare class RequestsService {
         fromProgram: {
             id: string;
             name: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             color: string;
             isSharedSource: boolean;
         };
@@ -25,9 +25,9 @@ export declare class RequestsService {
                 program: {
                     id: string;
                     name: string;
+                    departmentId: string;
                     createdAt: Date;
                     updatedAt: Date;
-                    departmentId: string;
                     color: string;
                     isSharedSource: boolean;
                 };
@@ -47,9 +47,9 @@ export declare class RequestsService {
         ownerPrograms: {
             id: string;
             name: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             color: string;
             isSharedSource: boolean;
         }[];
@@ -57,9 +57,9 @@ export declare class RequestsService {
             program: {
                 id: string;
                 name: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 color: string;
                 isSharedSource: boolean;
             };

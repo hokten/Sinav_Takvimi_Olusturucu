@@ -6,9 +6,9 @@ export declare class DepartmentsController {
         programs: {
             id: string;
             name: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             color: string;
             isSharedSource: boolean;
         }[];

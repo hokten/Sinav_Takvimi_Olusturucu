@@ -5,6 +5,8 @@ import { X, Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import { createCourse, updateCourse, deleteCourse } from "@/app/actions/courses";
 import { courseSchema } from "@/lib/validations";
 import { CourseImportModal } from "./CourseImportModal";
+import { Toast } from "@/components/Toast";
+import { getErrorMessage } from "@/lib/error-utils";
 
 interface Program { id: string; name: string; color: string }
 interface Instructor { id: string; name: string; mainProgramId: string; sideProgramIds: string[] }
@@ -53,6 +55,11 @@ export function CoursesManager({ courses, programs, instructors, onRefresh }: Pr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [progFilter, setProgFilter] = useState("");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  function showToast(message: string, type: "success" | "error") {
+    setToast({ message, type });
+  }
 
   function openAdd() {
     setEditId(null);
@@ -109,7 +116,7 @@ export function CoursesManager({ courses, programs, instructors, onRefresh }: Pr
 
     const validation = courseSchema.safeParse(payload);
     if (!validation.success) {
-      alert(validation.error.issues[0].message);
+      showToast(validation.error.issues[0].message, "error");
       return;
     }
 
@@ -119,13 +126,15 @@ export function CoursesManager({ courses, programs, instructors, onRefresh }: Pr
       const data = { ...form, code: form.code.trim(), name: form.name.trim() };
       if (editId) {
         await updateCourse(editId, data);
+        showToast("Ders güncellendi.", "success");
       } else {
         await createCourse(data);
+        showToast("Ders eklendi.", "success");
       }
       setShowForm(false);
       onRefresh?.();
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Hata oluştu.");
+      showToast(getErrorMessage(err), "error");
     } finally {
       setLoading(false);
     }
@@ -135,9 +144,10 @@ export function CoursesManager({ courses, programs, instructors, onRefresh }: Pr
     if (!confirm(`"${name}" dersini silmek istiyor musunuz?`)) return;
     try {
       await deleteCourse(id);
+      showToast("Ders silindi.", "success");
       onRefresh?.();
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || "Hata oluştu.");
+      showToast(getErrorMessage(err), "error");
     }
   }
 
@@ -387,6 +397,13 @@ export function CoursesManager({ courses, programs, instructors, onRefresh }: Pr
             </form>
           </div>
         </div>
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

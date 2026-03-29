@@ -15,9 +15,9 @@ export declare class InstructorsController {
         mainProgram: {
             id: string;
             name: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             color: string;
             isSharedSource: boolean;
         };

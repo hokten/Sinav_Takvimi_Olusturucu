@@ -14,10 +14,12 @@ model User {
   email        String        @unique
   password     String
   role         Role          @default(DEPT_HEAD)
+  departmentId String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   createdExams Exam[]        @relation("ExamCreatedBy")
   programs     UserProgram[]
+  department   Department?   @relation(fields: [departmentId], references: [id])
 }
 
 model Department {
@@ -26,6 +28,7 @@ model Department {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   programs  Program[]
+  users     User[]
 }
 
 model Program {

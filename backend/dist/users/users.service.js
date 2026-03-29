@@ -37,7 +37,12 @@ let UsersService = class UsersService {
     }
     async create(data) {
         const { departmentId, ...userData } = data;
-        const user = await this.prisma.user.create({ data: userData });
+        const user = await this.prisma.user.create({
+            data: {
+                ...userData,
+                departmentId: userData.role === 'DEPT_HEAD' ? departmentId : null
+            }
+        });
         if (departmentId && userData.role === 'DEPT_HEAD') {
             const programs = await this.prisma.program.findMany({ where: { departmentId } });
             if (programs.length > 0) {
@@ -50,7 +55,13 @@ let UsersService = class UsersService {
     }
     async update(id, data) {
         const { departmentId, ...userData } = data;
-        const user = await this.prisma.user.update({ where: { id }, data: userData });
+        const user = await this.prisma.user.update({
+            where: { id },
+            data: {
+                ...userData,
+                departmentId: userData.role === 'DEPT_HEAD' ? departmentId : (userData.role === 'ADMIN' ? null : undefined)
+            }
+        });
         if (userData.role === 'ADMIN') {
             await this.prisma.userProgram.deleteMany({ where: { userId: id } });
         }
@@ -67,6 +78,12 @@ let UsersService = class UsersService {
     }
     async remove(id) {
         return this.prisma.user.delete({ where: { id } });
+    }
+    async updateDepartmentId(userId, departmentId) {
+        return this.prisma.user.update({
+            where: { id: userId },
+            data: { departmentId }
+        });
     }
 };
 exports.UsersService = UsersService;

@@ -41,7 +41,7 @@ export default function RequestsPage() {
         if (err.response?.status === 401) logout();
       })
       .finally(() => setLoading(false));
-  }, [session, logout]);
+  }, [user, logout]);
 
   if (error) return <div className="p-8 text-red-500 bg-red-50 border border-red-200 rounded-md">Error: {error}</div>;
   if (loading && requests.length === 0) return <div className="p-8 text-gray-500 animate-pulse">Talepler Yükleniyor...</div>;

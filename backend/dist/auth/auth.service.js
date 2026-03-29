@@ -56,14 +56,29 @@ let AuthService = class AuthService {
     }
     async validateUser(email, pass) {
         const user = await this.usersService.findByEmail(email);
-        if (user && await bcrypt.compare(pass, user.password)) {
-            const { password, ...result } = user;
+        if (user && (await bcrypt.compare(pass, user.password))) {
+            const userData = user;
+            if (userData.role === 'DEPT_HEAD' && !userData.departmentId && userData.programs?.length > 0) {
+                const mainProg = userData.programs.find((p) => p.type === 'MAIN') || userData.programs[0];
+                const deptId = mainProg.program?.departmentId;
+                if (deptId) {
+                    await this.usersService.updateDepartmentId(userData.id, deptId);
+                    userData.departmentId = deptId;
+                }
+            }
+            const { password, ...result } = userData;
             return result;
         }
         return null;
     }
     async login(user) {
-        const payload = { email: user.email, sub: user.id, role: user.role, programIds: user.programs?.map((p) => p.programId) || [] };
+        const payload = {
+            email: user.email,
+            sub: user.id,
+            role: user.role,
+            departmentId: user.departmentId,
+            programIds: user.programs?.map((p) => p.programId) || []
+        };
         return {
             access_token: this.jwtService.sign(payload),
             user: { ...user, programIds: payload.programIds },

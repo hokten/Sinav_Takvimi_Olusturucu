@@ -12,9 +12,9 @@ export declare class RequestsController {
         fromProgram: {
             id: string;
             name: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             color: string;
             isSharedSource: boolean;
         };
@@ -23,9 +23,9 @@ export declare class RequestsController {
                 program: {
                     id: string;
                     name: string;
+                    departmentId: string;
                     createdAt: Date;
                     updatedAt: Date;
-                    departmentId: string;
                     color: string;
                     isSharedSource: boolean;
                 };
@@ -45,9 +45,9 @@ export declare class RequestsController {
         ownerPrograms: {
             id: string;
             name: string;
+            departmentId: string;
             createdAt: Date;
             updatedAt: Date;
-            departmentId: string;
             color: string;
             isSharedSource: boolean;
         }[];
@@ -55,9 +55,9 @@ export declare class RequestsController {
             program: {
                 id: string;
                 name: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 color: string;
                 isSharedSource: boolean;
             };

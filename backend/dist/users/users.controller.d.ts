@@ -14,9 +14,9 @@ export declare class UsersController {
             } & {
                 id: string;
                 name: string;
+                departmentId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                departmentId: string;
                 color: string;
                 isSharedSource: boolean;
             };
@@ -32,6 +32,7 @@ export declare class UsersController {
         name: string;
         password: string;
         role: import(".prisma/client").$Enums.Role;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
     })[]>;
@@ -41,6 +42,7 @@ export declare class UsersController {
         name: string;
         password: string;
         role: import(".prisma/client").$Enums.Role;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
     }>;
@@ -50,6 +52,7 @@ export declare class UsersController {
         name: string;
         password: string;
         role: import(".prisma/client").$Enums.Role;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
     }>;
@@ -59,6 +62,7 @@ export declare class UsersController {
         name: string;
         password: string;
         role: import(".prisma/client").$Enums.Role;
+        departmentId: string | null;
         createdAt: Date;
         updatedAt: Date;
     }>;

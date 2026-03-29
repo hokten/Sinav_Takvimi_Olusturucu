@@ -21,12 +21,13 @@ interface Exam {
   instructor: Instructor;
   program: Program;
 }
-interface SlotRequest {
+interface ActiveSlotRequest {
   id: string;
   roomId: string;
   date: string;
   time: string;
   status: string;
+  fromProgramId: string;
 }
 
 interface Props {
@@ -37,7 +38,7 @@ interface Props {
   userRole: string;
   userProgramId: string | null;
   isMyRoom: boolean;
-  slotRequests: SlotRequest[];
+  activeSlotRequests: ActiveSlotRequest[];
   onClose: () => void;
 }
 
@@ -60,12 +61,12 @@ export function RoomScheduleModal({
   userRole,
   userProgramId,
   isMyRoom,
-  slotRequests,
+  activeSlotRequests,
   onClose,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [pendingSlot, setPendingSlot] = useState<{ date: string; time: string } | null>(null);
-  const [localRequests, setLocalRequests] = useState<SlotRequest[]>(slotRequests);
+  const [localRequests, setLocalRequests] = useState<ActiveSlotRequest[]>(activeSlotRequests);
   const [error, setError] = useState<string | null>(null);
 
   const isDeptHead = userRole === "DEPT_HEAD";
@@ -75,7 +76,7 @@ export function RoomScheduleModal({
     return exams.filter((e) => e.date === date && e.time === time && e.roomIds.includes(room.id));
   }
 
-  function getRequestForSlot(date: string, time: string): SlotRequest | undefined {
+  function getRequestForSlot(date: string, time: string): ActiveSlotRequest | undefined {
     return localRequests.find(
       (r) => r.roomId === room.id && r.date === date && r.time === time
     );
@@ -89,7 +90,7 @@ export function RoomScheduleModal({
         await createSlotRequest({ programId: userProgramId ?? "", roomId: room.id, date, time });
         setLocalRequests((prev) => [
           ...prev,
-          { id: crypto.randomUUID(), roomId: room.id, date, time, status: "PENDING" },
+          { id: crypto.randomUUID(), roomId: room.id, date, time, status: "PENDING", fromProgramId: userProgramId ?? "" },
         ]);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Talep gönderilemedi.");
@@ -220,7 +221,13 @@ export function RoomScheduleModal({
                               {isOccupied ? (
                                 <span className="text-gray-300 text-xs">—</span>
                               ) : request ? (
-                                <RequestStatusBadge status={request.status} />
+                                request.fromProgramId === userProgramId ? (
+                                  <RequestStatusBadge status={request.status} />
+                                ) : request.status === "APPROVED" ? (
+                                  <span className="text-purple-600 text-xs font-semibold">REZERVE</span>
+                                ) : (
+                                  <span className="text-amber-600 text-[10px] font-medium uppercase">BEKLİYOR</span>
+                                )
                               ) : (
                                 <button
                                   onClick={() => handleRequest(date, session)}

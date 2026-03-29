@@ -61,6 +61,7 @@ interface Props {
   mySlotRequests: MySlotRequest[];
   activeSlotRequests: ActiveSlotRequest[];
   roomAssignments: RoomAssignment[];
+  allPrograms?: Program[];
 }
 
 const DAYS_TR = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
@@ -108,6 +109,7 @@ export function RoomProgramView({
   mySlotRequests,
   activeSlotRequests,
   roomAssignments,
+  allPrograms,
 }: Props) {
   const router = { refresh: () => window.location.reload() };
   useRealtimeExams(() => router.refresh());
@@ -123,7 +125,7 @@ export function RoomProgramView({
     r.name.toLowerCase().includes(roomFilter.toLowerCase())
   );
 
-  const programMap = Object.fromEntries(programs.map((p) => [p.id, p]));
+  const programMap = Object.fromEntries((allPrograms || programs).map((p) => [p.id, p]));
 
   const myRoomIds = new Set(
     roomAssignments
@@ -475,7 +477,7 @@ export function RoomProgramView({
           userRole={userRole}
           userProgramId={userProgramId}
           isMyRoom={isDeptHead && myRoomIds.has(selectedRoom.id)}
-          slotRequests={mySlotRequests}
+          activeSlotRequests={activeSlotRequests}
           onClose={() => setSelectedRoom(null)}
         />
       )}
